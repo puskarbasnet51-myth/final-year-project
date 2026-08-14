@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Register - FeedForward{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:60px; padding-bottom:60px;">
+    <div style="max-width:560px; margin:0 auto;">
+        <div class="card">
+            <div class="card-header-green text-center">
+                <h3 style="font-size:1.4rem; font-weight:700;">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/register/">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="full_name"
+                               class="form-control"
+                               placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username"
+                               class="form-control"
+                               placeholder="Choose a username" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email"
+                               class="form-control"
+                               placeholder="Your email address" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone"
+                                   class="form-control"
+                                   placeholder="98XXXXXXXX" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">I want to</label>
+                            <select name="role" class="form-control" required>
+                                <option value="">-- Select Role --</option>
+                                <option value="donor">
+                                    Donate fresh food
+                                </option>
+                                <option value="receiver">
+                                    Receive food (NGO/Shelter)
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Organization / Your Name
+                        </label>
+                        <input type="text" name="organization"
+                               class="form-control"
+                               placeholder="e.g. Bal Mandir, Your Name"
+                               required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control"
+                                  rows="2"
+                                  placeholder="Your location" required>
+                        </textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password1"
+                                   class="form-control"
+                                   placeholder="Create password" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Confirm Password
+                            </label>
+                            <input type="password" name="password2"
+                                   class="form-control"
+                                   placeholder="Repeat password" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-green btn-full">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+                <p class="text-center" style="margin-top:20px;">
+                    Already have an account?
+                    <a href="/login/"
+                       style="color:var(--green-main);font-weight:600;">
+                        Login here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

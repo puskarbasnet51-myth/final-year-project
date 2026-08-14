@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - FeedForward{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="fw-bold" style="color:#2e7d32;">
+        Welcome, {{ user.username }}! 👋
+    </h2>
+    <p class="text-muted">You are logged in successfully.</p>
+    <a href="/logout/" class="btn btn-danger">Logout</a>
+</div>
+{% endblock %}

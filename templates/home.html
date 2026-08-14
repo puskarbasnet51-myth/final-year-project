@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}FeedForward - Home{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <h1><i class="fas fa-leaf"></i> FeedForward</h1>
+        <p>Donate fresh meals to orphanages, old age homes and shelters.</p>
+        <p class="hero-sub">
+            Cook at home or order from a restaurant —
+            we connect you to those in need.
+        </p>
+        <div class="hero-buttons">
+            <a href="/register/" class="btn btn-outline">
+                <i class="fas fa-hand-holding-heart"></i> Donate a Meal
+            </a>
+            <a href="/register/" class="btn btn-green">
+                <i class="fas fa-users"></i> I Need Food Support
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<section class="section section-gray">
+    <div class="container">
+        <div class="grid-3">
+            <div class="stat-card">
+                <span class="stat-number color-green">{{ total_donations }}</span>
+                <span class="stat-label">Donations Completed</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number color-green">{{ total_meals }}</span>
+                <span class="stat-label">Meals Served</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number color-green">{{ total_users }}</span>
+                <span class="stat-label">Registered Users</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="section">
+    <div class="container">
+        <h2 class="section-title">How FeedForward Works</h2>
+        <p class="section-sub">
+            Simple steps to donate fresh food to those in need.
+        </p>
+        <div class="grid-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-plus fa-3x color-green mb-3"
+                       style="display:block;font-size:2.5rem;margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">1. Register</h5>
+                    <p class="text-muted">
+                        Sign up as a Donor or Receiver.
+                        Takes less than a minute.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-utensils fa-3x color-green"
+                       style="display:block;font-size:2.5rem;margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">2. Plan a Fresh Meal</h5>
+                    <p class="text-muted">
+                        Donors cook at home or order from a restaurant.
+                        Receivers post what they need.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-robot"
+                       style="display:block;font-size:2.5rem;color:var(--green-main);margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">3. Smart Match</h5>
+                    <p class="text-muted">
+                        Our system connects donors with the
+                        most suitable receiver.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-bell"
+                       style="display:block;font-size:2.5rem;color:var(--green-main);margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">4. Get Notified</h5>
+                    <p class="text-muted">
+                        Both donor and receiver get instant
+                        notifications when matched.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle"
+                       style="display:block;font-size:2.5rem;color:var(--green-main);margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">5. Deliver & Confirm</h5>
+                    <p class="text-muted">
+                        Donor delivers the fresh meal.
+                        Receiver confirms. Done!
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-bar"
+                       style="display:block;font-size:2.5rem;color:var(--green-main);margin-bottom:12px;"></i>
+                    <h5 class="fw-bold mb-2">6. Track Impact</h5>
+                    <p class="text-muted">
+                        See your donation history and
+                        total meals served.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Fresh -->
+<section class="section section-green">
+    <div class="container text-center">
+        <h2 class="section-title">Why Fresh Food Only?</h2>
+        <p class="section-sub">
+            FeedForward is different. We don't deal with leftovers.
+        </p>
+        <div class="grid-3">
+            <div>
+                <i class="fas fa-heart"
+                   style="font-size:2rem;color:var(--green-main);margin-bottom:8px;display:block;"></i>
+                <h6 class="fw-bold mb-1">Dignity</h6>
+                <p class="text-muted small">
+                    Recipients receive fresh meals, not leftovers.
+                </p>
+            </div>
+            <div>
+                <i class="fas fa-shield-alt"
+                   style="font-size:2rem;color:var(--green-main);margin-bottom:8px;display:block;"></i>
+                <h6 class="fw-bold mb-1">Quality</h6>
+                <p class="text-muted small">
+                    Fresh food means better nutrition and safety.
+                </p>
+            </div>
+            <div>
+                <i class="fas fa-hands-helping"
+                   style="font-size:2rem;color:var(--green-main);margin-bottom:8px;display:block;"></i>
+                <h6 class="fw-bold mb-1">Intentional Giving</h6>
+                <p class="text-muted small">
+                    Every donation is planned specifically
+                    for those in need.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

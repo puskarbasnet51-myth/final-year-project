@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% block title %}Receiver Dashboard - FeedForward{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-users"></i> Receiver Dashboard
+            </h1>
+            <p class="page-subtitle">
+                Welcome, <strong>{{ user.username }}</strong>!
+            </p>
+        </div>
+        <button class="btn btn-green"
+                onclick="openModal('addRequestModal')">
+            <i class="fas fa-plus"></i> Post Meal Need
+        </button>
+    </div>
+
+    <!-- Notifications -->
+    {% for notif in notifications %}
+    <div class="notif-bar mb-2">
+        <span><i class="fas fa-bell"></i> {{ notif.message }}</span>
+        <a href="/notification/read/{{ notif.id }}/"
+           class="btn btn-small btn-warning-outline">Mark Read</a>
+    </div>
+    {% endfor %}
+
+    <!-- Stats -->
+    <div class="grid-3 mb-5">
+        <div class="stat-card">
+            <span class="stat-number color-green">{{ total_requests }}</span>
+            <span class="stat-label">Total Requests</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number color-warning">{{ open_requests }}</span>
+            <span class="stat-label">Open</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number color-primary">{{ matched }}</span>
+            <span class="stat-label">Matched</span>
+        </div>
+    </div>
+
+    <!-- Incoming Donations from Donors -->
+    <h2 class="page-title mb-1" style="font-size:1.4rem;">
+        <i class="fas fa-gift"></i> Incoming Donations
+    </h2>
+    <p class="text-muted mb-3">
+        These donors have committed to bring fresh food for you.
+    </p>
+
+<h3 class="section-title" style="font-size:1.3rem; text-align:left;">Available Donations</h3>
+
+{% if available_donations %}
+<div class="grid-3">
+  {% for donation in available_donations %}
+  <div class="card open-request-card">
+    <p class="fw-bold">{{ donation.meal_description }}</p>
+    <p class="small text-muted">By {{ donation.donor.username }}</p>
+    <p class="small">For {{ donation.people_count }} people — {{ donation.donation_date }}</p>
+    <p class="small text-muted">{{ donation.preparation_method }}</p>
+    <form method="post" action="{% url 'claim_donation' donation.id %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-green btn-small mt-1">Claim This Donation</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">No available donations right now.</div>
+{% endif %}
+
+    {% if incoming_donations %}
+    <div class="grid-3 mb-5">
+        {% for post in incoming_donations %}
+        <div class="card card-top-border">
+            <div class="card-body">
+                <span class="badge badge-success mb-2">
+                    Incoming ✓
+                </span>
+                <h5 class="fw-bold mb-1">
+                    {{ post.meal_description }}
+                </h5>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-user"></i>
+                    <strong>Donor:</strong>
+                    {{ post.donor.username }}
+                </p>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-users"></i>
+                    {{ post.people_count }} people
+                </p>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-calendar"></i>
+                    {{ post.donation_date }}
+                </p>
+                <p class="text-muted small mb-3">
+                    {% if post.preparation_method == 'home_cooked' %}
+                        🏠 Home Cooked
+                    {% else %}
+                        🍽️ Restaurant Ordered
+                    {% endif %}
+                </p>
+
+                {% for match in post.donationmatch_set.all %}
+                    {% if match.pickup_status != 'completed' %}
+                    <a href="/receiver/confirm/{{ match.id }}/"
+                       class="btn btn-green btn-full btn-small">
+                        <i class="fas fa-check-circle"></i>
+                        Confirm Food Received
+                    </a>
+                    {% else %}
+                    <span class="badge badge-success"
+                          style="width:100%; text-align:center;
+                                 display:block; padding:8px;">
+                        ✅ Completed
+                    </span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state mb-5">
+        <i class="fas fa-inbox"></i>
+        <p>
+            No incoming donations yet.
+            Post a meal need so donors can see what you require!
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- My Meal Requests -->
+    <h2 class="page-title mb-3" style="font-size:1.4rem;">
+        <i class="fas fa-clipboard-list"></i> My Meal Requests
+    </h2>
+
+    {% if my_requests %}
+    <div class="grid-3">
+        {% for req in my_requests %}
+        <div class="card">
+            <div class="card-body">
+                <h5 class="fw-bold mb-1">{{ req.meal_type }}</h5>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-users"></i>
+                    {{ req.people_count }} people
+                </p>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-calendar"></i>
+                    {{ req.preferred_date }}
+                </p>
+                {% if req.notes %}
+                <p class="text-muted small mb-2">{{ req.notes }}</p>
+                {% endif %}
+
+                {% if req.status == 'open' %}
+                    <span class="badge badge-warning">
+                        Waiting for Donor
+                    </span>
+
+                {% elif req.status == 'matched' %}
+                    <span class="badge badge-primary mb-2">
+                        Matched ✓
+                    </span>
+                    {% for match in req.donationmatch_set.all %}
+                    <div class="match-box">
+                        <p class="small mb-1">
+                            <strong>Donor:</strong>
+                            {{ match.donation_post.donor.username }}
+                        </p>
+                        <p class="small mb-1">
+                            <strong>Date:</strong>
+                            {{ match.donation_post.donation_date }}
+                        </p>
+                        <p class="small mb-2">
+                            <strong>Method:</strong>
+                            {% if match.donation_post.preparation_method == 'home_cooked' %}
+                                🏠 Home Cooked
+                            {% else %}
+                                🍽️ Restaurant
+                            {% endif %}
+                        </p>
+                        {% if match.pickup_status != 'completed' %}
+                        <a href="/receiver/confirm/{{ match.id }}/"
+                           class="btn btn-green btn-full btn-small">
+                            <i class="fas fa-check-circle"></i>
+                            Confirm Received
+                        </a>
+                        {% else %}
+                        <span class="badge badge-success"
+                              style="width:100%;text-align:center;
+                                     display:block;padding:8px;">
+                            ✅ Completed
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                {% else %}
+                    <span class="badge badge-success">Closed ✓</span>
+                {% endif %}
+
+                {% if req.status != 'closed' %}
+                <form method="POST"
+                      action="/receiver/delete/{{ req.id }}/"
+                      style="margin-top:12px;"
+                      onsubmit="return confirmDelete(
+                          'Delete this request?')">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="btn btn-danger-outline btn-full">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                </form>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-clipboard"></i>
+        <p>No requests yet. Post a meal need above!</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Post Meal Need Modal -->
+<div class="modal-overlay" id="addRequestModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h5><i class="fas fa-plus"></i> Post a Meal Need</h5>
+            <button class="modal-close"
+                    onclick="closeModal('addRequestModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="/receiver/request/">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Meal Type *</label>
+                    <input type="text" name="meal_type"
+                           class="form-control"
+                           placeholder="e.g. Dal Bhat, Vegetarian"
+                           required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">People *</label>
+                        <input type="number" name="people_count"
+                               class="form-control"
+                               min="1" value="20" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" name="preferred_date"
+                               class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea name="notes" class="form-control"
+                              rows="2"
+                              placeholder="Allergies, preferences...">
+                    </textarea>
+                </div>
+                <button type="submit" class="btn btn-green btn-full">
+                    <i class="fas fa-paper-plane"></i> Post Request
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

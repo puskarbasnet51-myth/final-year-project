@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}Donor Dashboard - FeedForward{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-hand-holding-heart"></i> Donor Dashboard
+            </h1>
+            <p class="page-subtitle">
+                Welcome, <strong>{{ user.username }}</strong>!
+            </p>
+        </div>
+        <button class="btn btn-green"
+                onclick="openModal('addDonationModal')">
+            <i class="fas fa-plus"></i> Post a Donation
+        </button>
+    </div>
+
+    <!-- Notifications -->
+    {% for notif in notifications %}
+    <div class="notif-bar mb-2">
+        <span><i class="fas fa-bell"></i> {{ notif.message }}</span>
+        <a href="/notification/read/{{ notif.id }}/"
+           class="btn btn-small btn-warning-outline">
+            Mark Read
+        </a>
+    </div>
+    {% endfor %}
+
+    <!-- Stats -->
+    <div class="grid-4 mb-5">
+        <div class="stat-card">
+            <span class="stat-number color-green">{{ total }}</span>
+            <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number color-warning">{{ pending }}</span>
+            <span class="stat-label">Pending</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number color-primary">{{ matched }}</span>
+            <span class="stat-label">Matched</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number color-green">{{ completed }}</span>
+            <span class="stat-label">Completed</span>
+        </div>
+    </div>
+
+    <!-- Organizations Waiting -->
+    <h2 class="page-title mb-1" style="font-size:1.4rem;">
+        <i class="fas fa-building"></i>
+        Organizations Waiting for Food
+    </h2>
+    <p class="text-muted mb-3">
+        Click <strong>I Will Feed Them</strong> to respond.
+    </p>
+
+    {% if open_requests %}
+    <div class="grid-3 mb-5">
+        {% for req in open_requests %}
+        <div class="open-request-card">
+            <span class="badge badge-success mb-2">Open</span>
+            <h5 class="fw-bold mb-1">{{ req.meal_type }}</h5>
+            <p class="text-muted small mb-1">
+                <i class="fas fa-building"></i>
+                {{ req.receiver.username }}
+            </p>
+            <p class="text-muted small mb-1">
+                <i class="fas fa-users"></i>
+                {{ req.people_count }} people
+            </p>
+            <p class="text-muted small mb-3">
+                <i class="fas fa-calendar"></i>
+                {{ req.preferred_date }}
+            </p>
+            {% if req.notes %}
+            <p class="text-muted small mb-3">{{ req.notes }}</p>
+            {% endif %}
+            <button class="btn btn-green btn-full"
+                    onclick="openModal('feedModal{{ req.id }}')">
+                <i class="fas fa-heart"></i> I Will Feed Them!
+            </button>
+        </div>
+
+        <!-- Feed Modal -->
+        <div class="modal-overlay" id="feedModal{{ req.id }}">
+            <div class="modal">
+                <div class="modal-header">
+                    <h5><i class="fas fa-heart"></i> Confirm Donation</h5>
+                    <button class="modal-close"
+                            onclick="closeModal('feedModal{{ req.id }}')">
+                        ×
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success">
+                        <strong>Organization:</strong>
+                        {{ req.receiver.username }}<br>
+                        <strong>Meal:</strong> {{ req.meal_type }}<br>
+                        <strong>People:</strong> {{ req.people_count }}<br>
+                        <strong>Date:</strong> {{ req.preferred_date }}
+                    </div>
+                    <form method="POST"
+                          action="/donor/respond/{{ req.id }}/">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label class="form-label">How will you prepare?</label>
+                            <select name="preparation_method"
+                                    class="form-control">
+                                <option value="home_cooked">
+                                    🏠 Cook at home
+                                </option>
+                                <option value="restaurant">
+                                    🍽️ Order from restaurant
+                                </option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Notes (optional)
+                            </label>
+                            <textarea name="notes"
+                                      class="form-control"
+                                      rows="2"
+                                      placeholder="Message for receiver...">
+                            </textarea>
+                        </div>
+                        <button type="submit"
+                                class="btn btn-green btn-full">
+                            <i class="fas fa-check"></i>
+                            Confirm — I Will Feed Them!
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state mb-5">
+        <i class="fas fa-check-circle"></i>
+        <p>All requests matched. Check back soon!</p>
+    </div>
+    {% endif %}
+
+    <!-- My Donations -->
+    <h2 class="page-title mb-3" style="font-size:1.4rem;">
+        <i class="fas fa-history"></i> My Donations
+    </h2>
+
+    {% if my_posts %}
+    <div class="grid-3">
+        {% for post in my_posts %}
+        <div class="card">
+            <div class="card-body">
+                <h5 class="fw-bold mb-1">{{ post.meal_description }}</h5>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-users"></i>
+                    {{ post.people_count }} people
+                </p>
+                <p class="text-muted small mb-1">
+                    <i class="fas fa-calendar"></i>
+                    {{ post.donation_date }}
+                </p>
+                <p class="text-muted small mb-2">
+                    {% if post.preparation_method == 'home_cooked' %}
+                        🏠 Home Cooked
+                    {% else %}
+                        🍽️ Restaurant
+                    {% endif %}
+                </p>
+
+                {% if post.status == 'pending' %}
+                    <span class="badge badge-warning">Pending</span>
+                {% elif post.status == 'matched' %}
+                    <span class="badge badge-primary">Matched ✓</span>
+                    {% for match in post.donationmatch_set.all %}
+                    <div class="match-box">
+                        <p>
+                            <i class="fas fa-building"></i>
+                            {{ match.meal_request.receiver.username }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <span class="badge badge-success">Completed ✓</span>
+                {% endif %}
+
+                {% if post.status != 'completed' %}
+                <form method="POST"
+                      action="/donor/delete/{{ post.id }}/"
+                      style="margin-top:12px;"
+                      onsubmit="return confirmDelete('Delete this donation?')">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="btn btn-danger-outline btn-full">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-hand-holding-heart"></i>
+        <p>No donations yet. Help an organization above!</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Post Donation Modal -->
+<div class="modal-overlay" id="addDonationModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h5><i class="fas fa-plus"></i> Post a Donation</h5>
+            <button class="modal-close"
+                    onclick="closeModal('addDonationModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="/donor/add/">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">
+                        Meal Description *
+                    </label>
+                    <input type="text" name="meal_description"
+                           class="form-control"
+                           placeholder="e.g. Dal Bhat, Momo" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">People *</label>
+                        <input type="number" name="people_count"
+                               class="form-control"
+                               min="1" value="10" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" name="donation_date"
+                               class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Preparation</label>
+                    <select name="preparation_method" class="form-control">
+                        <option value="home_cooked">🏠 Cook at home</option>
+                        <option value="restaurant">🍽️ Restaurant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea name="notes" class="form-control"
+                              rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn btn-green btn-full">
+                    <i class="fas fa-paper-plane"></i> Post Donation
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

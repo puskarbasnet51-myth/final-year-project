@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - FeedForward{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <h2 class="fw-bold mb-4" style="color:#2e7d32;">
+        <i class="fas fa-shield-alt"></i> Admin Dashboard
+    </h2>
+
+    <!-- Stats -->
+    <div class="row mb-5">
+        <div class="col-md-2 mb-3">
+            <div class="card border-0 shadow-sm p-3 text-center">
+                <h3 class="fw-bold text-success">{{ total_users }}</h3>
+                <p class="text-muted mb-0 small">Users</p>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card border-0 shadow-sm p-3 text-center">
+                <h3 class="fw-bold text-warning">{{ total_posts }}</h3>
+                <p class="text-muted mb-0 small">Donations</p>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card border-0 shadow-sm p-3 text-center">
+                <h3 class="fw-bold text-primary">{{ total_requests }}</h3>
+                <p class="text-muted mb-0 small">Requests</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm p-3 text-center">
+                <h3 class="fw-bold text-info">{{ total_matches }}</h3>
+                <p class="text-muted mb-0 small">Matches</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm p-3 text-center">
+                <h3 class="fw-bold text-danger">{{ total_meals }}</h3>
+                <p class="text-muted mb-0 small">Meals Served</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Donation Posts -->
+    <h4 class="fw-bold mb-3">All Donation Posts</h4>
+    <div class="table-responsive mb-5">
+        <table class="table table-bordered table-hover">
+            <thead style="background:#2e7d32; color:white;">
+                <tr>
+                    <th>#</th>
+                    <th>Donor</th>
+                    <th>Meal</th>
+                    <th>People</th>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in posts %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ post.donor.username }}</td>
+                    <td>{{ post.meal_description }}</td>
+                    <td>{{ post.people_count }}</td>
+                    <td>{{ post.donation_date }}</td>
+                    <td>
+                        {% if post.preparation_method == 'home_cooked' %}
+                            🏠 Home Cooked
+                        {% else %}
+                            🍽️ Restaurant
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if post.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif post.status == 'matched' %}
+                            <span class="badge bg-primary">Matched</span>
+                        {% elif post.status == 'confirmed' %}
+                            <span class="badge bg-info">Confirmed</span>
+                        {% else %}
+                            <span class="badge bg-success">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted">No donations yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- All Meal Requests -->
+    <h4 class="fw-bold mb-3">All Meal Requests</h4>
+    <div class="table-responsive mb-5">
+        <table class="table table-bordered table-hover">
+            <thead style="background:#2e7d32; color:white;">
+                <tr>
+                    <th>#</th>
+                    <th>Receiver</th>
+                    <th>Meal Type</th>
+                    <th>People</th>
+                    <th>Preferred Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ req.receiver.username }}</td>
+                    <td>{{ req.meal_type }}</td>
+                    <td>{{ req.people_count }}</td>
+                    <td>{{ req.preferred_date }}</td>
+                    <td>
+                        {% if req.status == 'open' %}
+                            <span class="badge bg-warning text-dark">Open</span>
+                        {% elif req.status == 'matched' %}
+                            <span class="badge bg-primary">Matched</span>
+                        {% else %}
+                            <span class="badge bg-success">Closed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No requests yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- All Matches -->
+    <h4 class="fw-bold mb-3">All Matches</h4>
+    <div class="table-responsive mb-5">
+        <table class="table table-bordered table-hover">
+            <thead style="background:#2e7d32; color:white;">
+                <tr>
+                    <th>#</th>
+                    <th>Donor</th>
+                    <th>Meal</th>
+                    <th>Receiver</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in matches %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ match.donation_post.donor.username }}</td>
+                    <td>{{ match.donation_post.meal_description }}</td>
+                    <td>{{ match.meal_request.receiver.username }}</td>
+                    <td>{{ match.matched_on|date:"M d, Y" }}</td>
+                    <td>
+                        {% if match.pickup_status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif match.pickup_status == 'confirmed' %}
+                            <span class="badge bg-info">Confirmed</span>
+                        {% else %}
+                            <span class="badge bg-success">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No matches yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- All Users -->
+    <h4 class="fw-bold mb-3">All Users</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead style="background:#2e7d32; color:white;">
+                <tr>
+                    <th>#</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Organization</th>
+                    <th>Phone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in profiles %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ profile.user.username }}</td>
+                    <td>{{ profile.user.email }}</td>
+                    <td>
+                        {% if profile.role == 'donor' %}
+                            <span class="badge bg-warning text-dark">Donor</span>
+                        {% else %}
+                            <span class="badge bg-primary">Receiver</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ profile.organization }}</td>
+                    <td>{{ profile.phone }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No users yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}

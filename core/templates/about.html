@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}About - FeedForward{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section style="background:linear-gradient(135deg,#1b5e20,#2e7d32);
+                color:white; padding:60px 0;">
+    <div class="container text-center">
+        <h1 class="fw-bold mb-3">
+            <i class="fas fa-leaf"></i> About FeedForward
+        </h1>
+        <p class="lead mb-0">
+            A platform built on the belief that anyone can make a difference —
+            one fresh meal at a time.
+        </p>
+    </div>
+</section>
+
+<!-- What is FeedForward -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-4">
+                <h2 class="fw-bold mb-3" style="color:#2e7d32;">
+                    What is FeedForward?
+                </h2>
+                <p class="text-muted">
+                    FeedForward is a web-based Fresh Individual Food Donation
+                    Management Platform that connects individuals who wish to
+                    donate freshly prepared meals with NGOs, orphanages, and
+                    old age homes in need of regular food support.
+                </p>
+                <p class="text-muted">
+                    Unlike other platforms that deal with leftover or surplus
+                    food, FeedForward focuses exclusively on <strong>fresh,
+                    intentionally prepared meals</strong> — either home-cooked
+                    or ordered from a local restaurant — ensuring every
+                    recipient receives food with dignity and care.
+                </p>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card border-0 shadow-sm p-4"
+                     style="background:#f1f8f1; border-radius:16px;">
+                    <h5 class="fw-bold mb-3" style="color:#2e7d32;">
+                        <i class="fas fa-bullseye"></i> Our Mission
+                    </h5>
+                    <p class="text-muted mb-0">
+                        To make food donation simple, dignified, and accessible
+                        for every individual in Nepal — turning personal
+                        celebrations, religious occasions, and everyday goodwill
+                        into organized, trackable social impact.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- What makes us different -->
+<section class="py-5" style="background:#f1f8f1;">
+    <div class="container">
+        <h2 class="fw-bold text-center mb-5" style="color:#2e7d32;">
+            What Makes FeedForward Different
+        </h2>
+        <div class="row text-center">
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <i class="fas fa-utensils fa-3x text-success mb-3"></i>
+                    <h5 class="fw-bold">Fresh Food Only</h5>
+                    <p class="text-muted">
+                        Every meal donated through FeedForward is freshly
+                        prepared — home-cooked or restaurant-ordered.
+                        No leftovers. No surplus. Just fresh food made
+                        with care.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <i class="fas fa-robot fa-3x text-success mb-3"></i>
+                    <h5 class="fw-bold">Smart Matching</h5>
+                    <p class="text-muted">
+                        Our AI-based Smart Matching system automatically
+                        connects donors with the most suitable receiving
+                        organization based on location, meal needs,
+                        and date.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <i class="fas fa-heart fa-3x text-success mb-3"></i>
+                    <h5 class="fw-bold">Dignity in Giving</h5>
+                    <p class="text-muted">
+                        Recipients receive freshly prepared meals —
+                        not leftovers. This reflects a genuine culture
+                        of care, respect, and intentional giving.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Who can use -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="fw-bold text-center mb-5" style="color:#2e7d32;">
+            Who Can Use FeedForward?
+        </h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100
+                            border-start border-success border-3">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="fas fa-hand-holding-heart"></i>
+                        Individual Donors
+                    </h5>
+                    <p class="text-muted">
+                        Anyone who wishes to donate food — on a birthday,
+                        a festival, a religious occasion, or simply out of
+                        goodwill. Cook at home or order from a restaurant.
+                    </p>
+                    <a href="/register/" class="btn btn-green btn-sm mt-2">
+                        Register as Donor
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100
+                            border-start border-primary border-3">
+                    <h5 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-users"></i>
+                        Receivers
+                    </h5>
+                    <p class="text-muted">
+                        NGOs, orphanages, old age homes, and community
+                        shelters that need regular fresh food support
+                        for the people they serve.
+                    </p>
+                    <a href="/register/" class="btn btn-primary btn-sm mt-2">
+                        Register as Receiver
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm p-4 h-100
+                            border-start border-warning border-3">
+                    <h5 class="fw-bold text-warning mb-3">
+                        <i class="fas fa-shield-alt"></i>
+                        Administrators
+                    </h5>
+                    <p class="text-muted">
+                        Platform managers who verify users, monitor
+                        donation activity, manage matches, and generate
+                        impact reports.
+                    </p>
+                    <a href="/admin/" class="btn btn-warning btn-sm mt-2">
+                        Admin Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Developer info -->
+<section class="py-5" style="background:#f1f8f1;">
+    <div class="container text-center">
+        <h2 class="fw-bold mb-4" style="color:#2e7d32;">
+            About the Developer
+        </h2>
+        <div class="card border-0 shadow-sm p-5 mx-auto"
+             style="max-width:500px; border-radius:16px;">
+            <div style="width:80px; height:80px; background:#2e7d32;
+                        border-radius:50%; display:flex; align-items:center;
+                        justify-content:center; margin:0 auto 20px;">
+                <i class="fas fa-user fa-2x text-white"></i>
+            </div>
+            <h4 class="fw-bold mb-1">Pushkar Basnet</h4>
+            <p class="text-muted mb-1">BIT 7th Semester</p>
+            <p class="text-muted mb-1">
+                Texas College of Management & IT, Kathmandu
+            </p>
+            <p class="text-muted mb-3">
+                Lincoln University College, Malaysia
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <span class="badge bg-success px-3 py-2">Django</span>
+                <span class="badge bg-primary px-3 py-2">MySQL</span>
+                <span class="badge bg-warning text-dark px-3 py-2">
+                    Bootstrap 5
+                </span>
+                <span class="badge bg-danger px-3 py-2">AI/ML</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-5"
+         style="background:linear-gradient(135deg,#1b5e20,#2e7d32);
+                color:white;">
+    <div class="container text-center">
+        <h2 class="fw-bold mb-3">Ready to Make a Difference?</h2>
+        <p class="mb-4" style="color:#a5d6a7;">
+            Join FeedForward today and help us ensure that no one
+            in our community goes to bed hungry.
+        </p>
+        <a href="/register/" class="btn btn-warning btn-lg fw-bold me-3">
+            <i class="fas fa-user-plus"></i> Get Started
+        </a>
+        <a href="/" class="btn btn-outline-light btn-lg fw-bold">
+            <i class="fas fa-home"></i> Back to Home
+        </a>
+    </div>
+</section>
+
+{% endblock %}
