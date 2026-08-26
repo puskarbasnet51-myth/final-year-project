@@ -1,8 +1,14 @@
+
+
+
 import { Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
 import Register from './pages/Register'
 import Login from './pages/Login'
 import DonorDashboard from './pages/DonorDashboard'
+import About from './pages/About'
+import ReceiverDashboard from './pages/ReceiverDashboard'
+import Profile from './pages/Profile'
 
 function App() {
   return (
@@ -16,6 +22,7 @@ function App() {
 
           <div className="nav-links">
             <Link to="/">Home</Link>
+            <Link to="/about">About</Link>
             <Link to="/login">Login</Link>
             <Link to="/register" className="btn-nav">
               Register
@@ -30,6 +37,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/donor-dashboard" element={<DonorDashboard />} />
+           <Route path="/about" element={<About />} />
+          <Route path="/receiver-dashboard" element={<ReceiverDashboard />}/>
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
 

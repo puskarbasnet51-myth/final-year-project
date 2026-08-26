@@ -1,8 +1,12 @@
+
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from datetime import datetime
 from core.models import (
     UserProfile, DonationPost, MealRequest, DonationMatch, Notification
@@ -76,6 +80,35 @@ def login_view(request):
         messages.error(request, 'Wrong username or password!')
     return render(request, 'login.html')
 
+@require_POST
+def login_api(request):
+    username = request.POST.get('username', '').strip()
+    password = request.POST.get('password', '')
+
+    if not username or not password:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please enter username and password.'
+        }, status=400)
+
+    user = authenticate(
+        request,
+        username=username,
+        password=password
+    )
+
+    if user is None:
+        return JsonResponse({
+            'success': False,
+            'message': 'Wrong username or password!'
+        }, status=401)
+
+    login(request, user)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Login successful'
+    })
 
 def logout_view(request):
     logout(request)
@@ -404,3 +437,53 @@ def mark_read(request, notif_id):
     notif.is_read = True
     notif.save()
     return redirect('dashboard')
+
+    from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+
+
+@ensure_csrf_cookie
+def csrf_token_view(request):
+    return JsonResponse({'success': True})
+
+from django.contrib.auth import authenticate, login
+
+
+def api_login(request):
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'POST request required.'
+        }, status=405)
+
+    username = request.POST.get('username', '')
+    password = request.POST.get('password', '')
+
+    user = authenticate(
+        request,
+        username=username,
+        password=password
+    )
+
+    if user is None:
+        return JsonResponse({
+            'success': False,
+            'message': 'Wrong username or password!'
+        }, status=401)
+
+    login(request, user)
+
+    if user.is_staff:
+        role = 'admin'
+    else:
+        try:
+            profile = UserProfile.objects.get(user=user)
+            role = profile.role
+        except UserProfile.DoesNotExist:
+            role = None
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Login successful!',
+        'role': role
+    })
