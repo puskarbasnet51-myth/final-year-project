@@ -9,6 +9,7 @@ import DonorDashboard from './pages/DonorDashboard'
 import About from './pages/About'
 import ReceiverDashboard from './pages/ReceiverDashboard'
 import Profile from './pages/Profile'
+import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
            <Route path="/about" element={<About />} />
           <Route path="/receiver-dashboard" element={<ReceiverDashboard />}/>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
         </Routes>
       </main>
 
