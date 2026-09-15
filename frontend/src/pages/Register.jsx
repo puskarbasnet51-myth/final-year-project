@@ -1,19 +1,24 @@
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+const API_BASE = 'http://localhost:8000'
 
 function Register() {
+  const navigate = useNavigate()
+
   const [formData, setFormData] = useState({
-    full_name: '',
     username: '',
-    email: '',
-    phone: '',
-    role: '',
+    password: '',
+    confirmPassword: '',
+    role: 'donor',
     organization: '',
+    phone: '',
     address: '',
-    password1: '',
-    password2: '',
   })
+
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -24,66 +29,101 @@ function Register() {
     }))
   }
 
-  const getCsrfToken = async () => {
-  const response = await fetch('http://localhost:8000/register/', {
-    credentials: 'include',
-  })
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  const text = await response.text()
+    setErrorMessage('')
+    setSuccessMessage('')
 
-  const match = text.match(/name="csrfmiddlewaretoken" value="([^"]+)"/)
-
-  if (!match) {
-    throw new Error('CSRF token not found')
-  }
-
-  return match[1]
-}
-
-const handleSubmit = async (e) => {
-  e.preventDefault()
-
-  try {
-    // Get CSRF cookie from Django
-    await fetch('http://localhost:8000/register/', {
-      method: 'GET',
-      credentials: 'include',
-    })
-
-    const csrfToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('csrftoken='))
-      ?.split('=')[1]
-
-    if (!csrfToken) {
-      alert('CSRF token not found.')
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Passwords do not match.')
       return
     }
 
-    const response = await fetch('http://localhost:8000/register/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRFToken': csrfToken,
-      },
-      body: new URLSearchParams(formData),
-      credentials: 'include',
-    })
+    setLoading(true)
 
-    if (response.ok || response.redirected) {
-      alert('Account created successfully!')
-      window.location.href = 'http://localhost:8000/login/'
-    } else {
-      const text = await response.text()
-      console.log('Registration failed:', response.status, text)
-      alert('Registration failed. Check the terminal.')
+    try {
+      // 1. Get CSRF token from Django
+      const csrfResponse = await fetch(
+        `${API_BASE}/api/csrf/`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      )
+
+      if (!csrfResponse.ok) {
+        throw new Error('Could not get CSRF token')
+      }
+
+      // 2. Read CSRF token from browser cookie
+      const csrfToken = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('csrftoken='))
+        ?.split('=')
+        .slice(1)
+        .join('=')
+
+      if (!csrfToken) {
+        setErrorMessage(
+          'Could not get a CSRF token from Django. Is the backend running?'
+        )
+        setLoading(false)
+        return
+      }
+
+      // 3. Send registration request to Django
+      const response = await fetch(
+        `${API_BASE}/api/register/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+          body: new URLSearchParams({
+            username: formData.username,
+
+            // IMPORTANT:
+            // Django expects password1 and password2
+            password1: formData.password,
+            password2: formData.confirmPassword,
+
+            role: formData.role,
+            organization: formData.organization,
+            phone: formData.phone,
+            address: formData.address,
+          }),
+        }
+      )
+
+      const result = await response.json()
+
+      if (result.success) {
+        setSuccessMessage(
+          'Registration successful! Redirecting to login...'
+        )
+
+        setTimeout(() => {
+          navigate('/login')
+        }, 1500)
+      } else {
+        setErrorMessage(
+          result.message || 'Registration failed.'
+        )
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+
+      setErrorMessage(
+        'Could not connect to Django. Is the backend running?'
+      )
+    } finally {
+      setLoading(false)
     }
-
-  } catch (error) {
-    console.error('Registration error:', error)
-    alert('Could not connect to Django.')
   }
-}
 
   return (
     <div
@@ -95,12 +135,13 @@ const handleSubmit = async (e) => {
     >
       <div
         style={{
-          maxWidth: '560px',
+          maxWidth: '600px',
           margin: '0 auto',
         }}
       >
         <div className="card">
 
+          {/* Header */}
           <div className="card-header-green text-center">
             <h3
               style={{
@@ -113,26 +154,26 @@ const handleSubmit = async (e) => {
             </h3>
           </div>
 
+          {/* Body */}
           <div className="card-body">
+
+            {/* Error message */}
+            {errorMessage && (
+              <div className="message message-error">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Success message */}
+            {successMessage && (
+              <div className="message message-success">
+                {successMessage}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit}>
 
-              <div className="form-group">
-                <label className="form-label">
-                  Full Name
-                </label>
-
-                <input
-                  type="text"
-                  name="full_name"
-                  className="form-control"
-                  placeholder="Your full name"
-                  value={formData.full_name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
+              {/* Username */}
               <div className="form-group">
                 <label className="form-label">
                   Username
@@ -142,159 +183,156 @@ const handleSubmit = async (e) => {
                   type="text"
                   name="username"
                   className="form-control"
-                  placeholder="Choose a username"
+                  placeholder="Enter your username"
                   value={formData.username}
                   onChange={handleChange}
                   required
                 />
               </div>
 
+              {/* Password */}
               <div className="form-group">
                 <label className="form-label">
-                  Email
+                  Password
                 </label>
 
                 <input
-                  type="email"
-                  name="email"
+                  type="password"
+                  name="password"
                   className="form-control"
-                  placeholder="Your email address"
-                  value={formData.email}
+                  placeholder="Enter your password"
+                  value={formData.password}
                   onChange={handleChange}
                   required
                 />
               </div>
 
-              <div className="form-row">
-
-                <div className="form-group">
-                  <label className="form-label">
-                    Phone
-                  </label>
-
-                  <input
-                    type="text"
-                    name="phone"
-                    className="form-control"
-                    placeholder="98XXXXXXXX"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">
-                    I want to
-                  </label>
-
-                  <select
-                    name="role"
-                    className="form-control"
-                    value={formData.role}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">
-                      -- Select Role --
-                    </option>
-
-                    <option value="donor">
-                      Donate fresh food
-                    </option>
-
-                    <option value="receiver">
-                      Receive food (NGO/Shelter)
-                    </option>
-                  </select>
-                </div>
-
-              </div>
-
+              {/* Confirm Password */}
               <div className="form-group">
                 <label className="form-label">
-                  Organization / Your Name
+                  Confirm Password
+                </label>
+
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  className="form-control"
+                  placeholder="Confirm your password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              {/* Role */}
+              <div className="form-group">
+                <label className="form-label">
+                  Account Type
+                </label>
+
+                <select
+                  name="role"
+                  className="form-control"
+                  value={formData.role}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="donor">
+                    Donor
+                  </option>
+
+                  <option value="receiver">
+                    Receiver
+                  </option>
+                </select>
+              </div>
+
+              {/* Organization */}
+              <div className="form-group">
+                <label className="form-label">
+                  Organization
                 </label>
 
                 <input
                   type="text"
                   name="organization"
                   className="form-control"
-                  placeholder="e.g. Bal Mandir, Your Name"
+                  placeholder="Enter organization name"
                   value={formData.organization}
                   onChange={handleChange}
-                  required
                 />
               </div>
 
+              {/* Phone */}
               <div className="form-group">
                 <label className="form-label">
-                  Address
+                  Phone Number
+                </label>
+
+                <input
+                  type="text"
+                  name="phone"
+                  className="form-control"
+                  placeholder="Enter phone number"
+                  value={formData.phone}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Address */}
+              <div className="form-group">
+                <label className="form-label">
+                  Registered Address
                 </label>
 
                 <textarea
                   name="address"
                   className="form-control"
-                  rows="2"
-                  placeholder="Your location"
+                  placeholder="Enter your registered address"
                   value={formData.address}
                   onChange={handleChange}
-                  required
-                ></textarea>
+                  rows="3"
+                />
               </div>
 
-              <div className="form-row">
-
-                <div className="form-group">
-                  <label className="form-label">
-                    Password
-                  </label>
-
-                  <input
-                    type="password"
-                    name="password1"
-                    className="form-control"
-                    placeholder="Create password"
-                    value={formData.password1}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">
-                    Confirm Password
-                  </label>
-
-                  <input
-                    type="password"
-                    name="password2"
-                    className="form-control"
-                    placeholder="Repeat password"
-                    value={formData.password2}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-              </div>
-
+              {/* Register button */}
               <button
                 type="submit"
                 className="btn btn-green btn-full"
+                style={{
+                  marginTop: '8px',
+                }}
+                disabled={loading}
               >
                 <i className="fas fa-user-plus"></i>{' '}
-                Create Account
+
+                {loading
+                  ? 'Creating account...'
+                  : 'Create Account'}
               </button>
 
             </form>
 
-             <p className="text-center" style={{ marginTop: '20px' }}>
+            {/* Login link */}
+            <p
+              className="text-center"
+              style={{
+                marginTop: '20px',
+              }}
+            >
               Already have an account?{' '}
-              <Link to="/login" style={{ color: 'var(--green-main)', fontWeight: 600 }}>
+
+              <Link
+                to="/login"
+                style={{
+                  color: 'var(--green-main)',
+                  fontWeight: 600,
+                }}
+              >
                 Login here
               </Link>
             </p>
+
           </div>
         </div>
       </div>

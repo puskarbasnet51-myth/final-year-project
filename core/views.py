@@ -585,6 +585,218 @@ def delete_donation(request, post_id):
 
 
 # ============================================================
+# LOCATION HELPER (shared by donor + receiver JSON APIs)
+# ============================================================
+
+def _resolve_location(request):
+    """
+    Resolves the final location string for a DonationPost/MealRequest
+    based on the user's choice ('registered' or 'custom').
+
+    Backend-authoritative: a 'registered' choice always pulls the
+    real UserProfile.address server-side — it never trusts a client-
+    supplied address string for that case. UserProfile.address itself
+    is never modified here.
+
+    Returns (location, error_message).
+    """
+    location_choice = request.POST.get('location_choice', 'registered')
+    custom_location = request.POST.get('custom_location', '').strip()
+
+    if location_choice == 'custom':
+        if not custom_location:
+            return None, 'Please enter a location.'
+        return custom_location, None
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        return None, 'User profile not found.'
+
+    return profile.address, None
+
+
+# ============================================================
+# DONOR DASHBOARD - JSON API (React)
+# ============================================================
+
+@login_required
+def donor_dashboard_api(request):
+
+    profile = UserProfile.objects.filter(user=request.user).first()
+
+    my_posts = DonationPost.objects.filter(
+        donor=request.user
+    ).order_by('-created_at')
+
+    already_responded = DonationMatch.objects.filter(
+        donation_post__donor=request.user
+    ).values_list('meal_request_id', flat=True)
+
+    open_requests = MealRequest.objects.filter(
+        status='open'
+    ).exclude(id__in=already_responded).order_by('preferred_date')
+
+    notifications = Notification.objects.filter(
+        user=request.user, is_read=False
+    ).order_by('-created_at')[:5]
+
+    posts_data = []
+    for post in my_posts:
+        matches = DonationMatch.objects.filter(donation_post=post)
+        posts_data.append({
+            'id': post.id,
+            'meal_description': post.meal_description,
+            'people_count': post.people_count,
+            'donation_date': str(post.donation_date),
+            'preparation_method': post.preparation_method,
+            'status': post.status,
+            'donation_location': post.donation_location,
+            'matches': [
+                {'receiver_username': m.meal_request.receiver.username}
+                for m in matches
+            ],
+        })
+
+    requests_data = [{
+        'id': req.id,
+        'meal_type': req.meal_type,
+        'receiver_username': req.receiver.username,
+        'people_count': req.people_count,
+        'preferred_date': str(req.preferred_date),
+        'notes': req.notes,
+        'request_location': req.request_location,
+    } for req in open_requests]
+
+    notifications_data = [
+        {'id': n.id, 'message': n.message} for n in notifications
+    ]
+
+    return JsonResponse({
+        'success': True,
+        'username': request.user.username,
+        'profile_address': profile.address if profile else '',
+        'stats': {
+            'total': my_posts.count(),
+            'pending': my_posts.filter(status='pending').count(),
+            'matched': my_posts.filter(status='matched').count(),
+            'completed': my_posts.filter(status='completed').count(),
+        },
+        'notifications': notifications_data,
+        'open_requests': requests_data,
+        'my_posts': posts_data,
+    })
+
+
+@require_POST
+@login_required
+def add_donation_api(request):
+
+    meal_desc = request.POST.get('meal_description', '').strip()
+    people = request.POST.get('people_count', '1')
+    donation_date = request.POST.get('donation_date', '')
+    method = request.POST.get('preparation_method', 'home_cooked')
+    notes = request.POST.get('notes', '')
+
+    if not meal_desc or not donation_date:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fill in all required fields.'
+        }, status=400)
+
+    try:
+        people_int = int(people)
+        donation_date_obj = datetime.strptime(donation_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid date or people count.'
+        }, status=400)
+
+    location, error = _resolve_location(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+
+    DonationPost.objects.create(
+        donor=request.user,
+        meal_description=meal_desc,
+        people_count=people_int,
+        donation_date=donation_date_obj,
+        preparation_method=method,
+        notes=notes,
+        status='pending',
+        donation_location=location,
+    )
+
+    return JsonResponse({'success': True, 'message': 'Donation posted successfully!'})
+
+
+@require_POST
+@login_required
+def respond_to_request_api(request, req_id):
+
+    meal_req = get_object_or_404(MealRequest, id=req_id, status='open')
+
+    method = request.POST.get('preparation_method', 'home_cooked')
+    notes = request.POST.get('notes', '')
+
+    location, error = _resolve_location(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+
+    post = DonationPost.objects.create(
+        donor=request.user,
+        meal_description=f"{meal_req.meal_type} for {meal_req.receiver.username}",
+        people_count=meal_req.people_count,
+        donation_date=meal_req.preferred_date,
+        preparation_method=method,
+        notes=notes,
+        status='matched',
+        donation_location=location,
+    )
+
+    DonationMatch.objects.create(
+        donation_post=post,
+        meal_request=meal_req,
+        confirmed_by=request.user,
+    )
+
+    meal_req.status = 'matched'
+    meal_req.save()
+
+    notify(
+        request.user,
+        f"You committed to feed {meal_req.people_count} people at "
+        f"{meal_req.receiver.username} on {meal_req.preferred_date}!",
+        'match_found'
+    )
+    notify(
+        meal_req.receiver,
+        f"{request.user.username} will donate fresh food for "
+        f"{meal_req.people_count} people on {meal_req.preferred_date}.",
+        'match_found'
+    )
+
+    return JsonResponse({'success': True, 'message': 'Donation matched successfully!'})
+
+
+@require_POST
+@login_required
+def delete_donation_api(request, post_id):
+
+    post = get_object_or_404(DonationPost, id=post_id, donor=request.user)
+
+    if post.status == 'completed':
+        return JsonResponse({
+            'success': False,
+            'message': 'Completed donations cannot be deleted.'
+        }, status=400)
+
+    post.delete()
+    return JsonResponse({'success': True, 'message': 'Donation deleted successfully.'})
+
+
+# ============================================================
 # RECEIVER DASHBOARD
 # ============================================================
 
@@ -859,6 +1071,216 @@ def confirm_pickup(request, match_id):
     )
 
     return redirect('receiver_dashboard')
+
+
+# ============================================================
+# RECEIVER DASHBOARD - JSON API (React)
+# ============================================================
+
+@login_required
+def receiver_dashboard_api(request):
+
+    profile = UserProfile.objects.filter(user=request.user).first()
+
+    my_requests = MealRequest.objects.filter(
+        receiver=request.user
+    ).order_by('-created_at')
+
+    incoming_donations = DonationPost.objects.filter(
+        donationmatch__meal_request__receiver=request.user
+    ).distinct().order_by('-created_at')
+
+    available_donations = DonationPost.objects.filter(
+        status='pending'
+    ).order_by('donation_date')
+
+    notifications = Notification.objects.filter(
+        user=request.user, is_read=False
+    ).order_by('-created_at')[:5]
+
+    available_data = [{
+        'id': d.id,
+        'meal_description': d.meal_description,
+        'donor_username': d.donor.username,
+        'people_count': d.people_count,
+        'donation_date': str(d.donation_date),
+        'preparation_method': d.preparation_method,
+        'donation_location': d.donation_location,
+    } for d in available_donations]
+
+    incoming_data = []
+    for d in incoming_donations:
+        match = DonationMatch.objects.filter(
+            donation_post=d, meal_request__receiver=request.user
+        ).first()
+        incoming_data.append({
+            'id': d.id,
+            'meal_description': d.meal_description,
+            'donor_username': d.donor.username,
+            'people_count': d.people_count,
+            'donation_date': str(d.donation_date),
+            'preparation_method': d.preparation_method,
+            'donation_location': d.donation_location,
+            'pickup_status': match.pickup_status if match else 'pending',
+            'match_id': match.id if match else None,
+        })
+
+    requests_data = []
+    for req in my_requests:
+        matches = DonationMatch.objects.filter(meal_request=req)
+        requests_data.append({
+            'id': req.id,
+            'meal_type': req.meal_type,
+            'people_count': req.people_count,
+            'preferred_date': str(req.preferred_date),
+            'notes': req.notes,
+            'status': req.status,
+            'request_location': req.request_location,
+            'matches': [{
+                'donor_username': m.donation_post.donor.username,
+                'donation_date': str(m.donation_post.donation_date),
+                'preparation_method': m.donation_post.preparation_method,
+                'pickup_status': m.pickup_status,
+                'match_id': m.id,
+            } for m in matches],
+        })
+
+    notifications_data = [{'id': n.id, 'message': n.message} for n in notifications]
+
+    return JsonResponse({
+        'success': True,
+        'username': request.user.username,
+        'profile_address': profile.address if profile else '',
+        'stats': {
+            'total_requests': my_requests.count(),
+            'open_requests': my_requests.filter(status='open').count(),
+            'matched': my_requests.filter(status='matched').count(),
+        },
+        'notifications': notifications_data,
+        'available_donations': available_data,
+        'incoming_donations': incoming_data,
+        'requests': requests_data,
+    })
+
+
+@require_POST
+@login_required
+def add_meal_request_api(request):
+
+    meal_type = request.POST.get('meal_type', '').strip()
+    people = request.POST.get('people_count', '1')
+    preferred_date = request.POST.get('preferred_date', '')
+    notes = request.POST.get('notes', '')
+
+    if not meal_type or not preferred_date:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fill in all required fields.'
+        }, status=400)
+
+    try:
+        people_int = int(people)
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'message': 'Invalid people count.'}, status=400)
+
+    location, error = _resolve_location(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+
+    MealRequest.objects.create(
+        receiver=request.user,
+        meal_type=meal_type,
+        people_count=people_int,
+        preferred_date=preferred_date,
+        notes=notes,
+        request_location=location,
+    )
+
+    return JsonResponse({'success': True, 'message': 'Meal need posted successfully!'})
+
+
+@require_POST
+@login_required
+def claim_donation_api(request, post_id):
+
+    donation = get_object_or_404(DonationPost, id=post_id, status='pending')
+
+    meal_req = MealRequest.objects.create(
+        receiver=request.user,
+        meal_type=donation.meal_description,
+        people_count=donation.people_count,
+        preferred_date=donation.donation_date,
+        status='matched',
+        request_location=donation.donation_location,
+    )
+
+    DonationMatch.objects.create(
+        donation_post=donation,
+        meal_request=meal_req,
+        confirmed_by=request.user,
+    )
+
+    donation.status = 'matched'
+    donation.save()
+
+    notify(
+        donation.donor,
+        f"{request.user.username} claimed your donation for "
+        f"{donation.people_count} people on {donation.donation_date}!",
+        'match_found'
+    )
+    notify(
+        request.user,
+        f"You claimed a donation from {donation.donor.username} for "
+        f"{donation.people_count} people on {donation.donation_date}.",
+        'match_found'
+    )
+
+    return JsonResponse({'success': True, 'message': 'Donation claimed successfully!'})
+
+
+@require_POST
+@login_required
+def confirm_pickup_api(request, match_id):
+
+    match = get_object_or_404(
+        DonationMatch, id=match_id, meal_request__receiver=request.user
+    )
+
+    match.pickup_status = 'completed'
+    match.confirmed_by = request.user
+    match.save()
+
+    match.donation_post.status = 'completed'
+    match.donation_post.save()
+
+    match.meal_request.status = 'closed'
+    match.meal_request.save()
+
+    notify(
+        match.donation_post.donor,
+        'Your donation was confirmed completed by '
+        f'{match.meal_request.receiver.username}. Thank you!',
+        'completed'
+    )
+
+    return JsonResponse({'success': True, 'message': 'Pickup confirmed! Thank you.'})
+
+
+@require_POST
+@login_required
+def delete_request_api(request, req_id):
+
+    meal_request = get_object_or_404(MealRequest, id=req_id, receiver=request.user)
+
+    if meal_request.status == 'closed':
+        return JsonResponse({
+            'success': False,
+            'message': 'Closed requests cannot be deleted.'
+        }, status=400)
+
+    meal_request.delete()
+    return JsonResponse({'success': True, 'message': 'Request deleted successfully.'})
 
 
 # ============================================================
@@ -1251,3 +1673,15 @@ def mark_read(request, notif_id):
     notification.save()
 
     return redirect('dashboard')
+
+
+@require_POST
+@login_required
+def mark_read_api(request, notif_id):
+
+    notification = get_object_or_404(Notification, id=notif_id, user=request.user)
+
+    notification.is_read = True
+    notification.save()
+
+    return JsonResponse({'success': True})

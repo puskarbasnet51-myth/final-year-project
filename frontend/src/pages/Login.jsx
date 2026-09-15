@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+const API_BASE = 'http://localhost:8000'
+
 function Login() {
   const navigate = useNavigate()
 
@@ -30,7 +32,7 @@ function Login() {
     try {
       // 1. Get CSRF cookie from Django
       const csrfResponse = await fetch(
-        'http://localhost:8000/api/csrf/',
+        `${API_BASE}/api/csrf/`,
         {
           method: 'GET',
           credentials: 'include',
@@ -41,11 +43,13 @@ function Login() {
         throw new Error('Could not get CSRF token')
       }
 
-      // Get CSRF token from browser cookie
+      // 2. Read CSRF token from browser cookie
       const csrfToken = document.cookie
         .split('; ')
         .find((row) => row.startsWith('csrftoken='))
-        ?.split('=')[1]
+        ?.split('=')
+        .slice(1)
+        .join('=')
 
       if (!csrfToken) {
         setErrorMessage(
@@ -55,31 +59,28 @@ function Login() {
         return
       }
 
-      // 2. Send login request to Django
+      // 3. Send login request to Django
       const response = await fetch(
-        'http://localhost:8000/api/login/',
+        `${API_BASE}/api/login/`,
         {
           method: 'POST',
-
           headers: {
             'Content-Type':
               'application/x-www-form-urlencoded',
             'X-CSRFToken': csrfToken,
           },
-
+          credentials: 'include',
           body: new URLSearchParams({
             username: formData.username,
             password: formData.password,
           }),
-
-          credentials: 'include',
         }
       )
 
-      // 3. Read Django response
+      // 4. Read Django response
       const result = await response.json()
 
-      // 4. Check login result
+      // 5. Check login result
       if (result.success) {
         console.log('Login successful')
         console.log('User role:', result.role)
@@ -153,19 +154,18 @@ function Login() {
           {/* Body */}
           <div className="card-body">
 
-            {/* Error */}
+            {/* Error message */}
             {errorMessage && (
               <div className="message message-error">
                 {errorMessage}
               </div>
             )}
 
-            {/* Login Form */}
+            {/* Login form */}
             <form onSubmit={handleSubmit}>
 
               {/* Username */}
               <div className="form-group">
-
                 <label className="form-label">
                   Username
                 </label>
@@ -179,12 +179,10 @@ function Login() {
                   onChange={handleChange}
                   required
                 />
-
               </div>
 
               {/* Password */}
               <div className="form-group">
-
                 <label className="form-label">
                   Password
                 </label>
@@ -198,10 +196,9 @@ function Login() {
                   onChange={handleChange}
                   required
                 />
-
               </div>
 
-              {/* Login Button */}
+              {/* Login button */}
               <button
                 type="submit"
                 className="btn btn-green btn-full"
@@ -219,7 +216,7 @@ function Login() {
 
             </form>
 
-            {/* Register Link */}
+            {/* Register link */}
             <p
               className="text-center"
               style={{
@@ -237,7 +234,6 @@ function Login() {
               >
                 Register here
               </Link>
-
             </p>
 
           </div>

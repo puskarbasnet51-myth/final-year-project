@@ -1,100 +1,59 @@
 
 
+
 import { useState, useEffect } from 'react'
 
-const mockUser = {
-  username: 'demo_receiver',
+const API_BASE = 'http://localhost:8000'
+
+async function postToDjango(url, data) {
+  await fetch(`${API_BASE}/api/csrf/`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  const csrfToken = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('csrftoken='))
+    ?.split('=')[1]
+
+  const response = await fetch(`${API_BASE}${url}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrfToken || '',
+    },
+    body: new URLSearchParams(data),
+    credentials: 'include',
+  })
+
+  return response.json()
 }
-
-const mockStats = {
-  total_requests: 3,
-  open_requests: 1,
-  matched: 1,
-}
-
-const mockNotificationsInit = [
-  {
-    id: 1,
-    message: 'A donor has committed to provide fresh food for your organization.',
-  },
-]
-
-const mockAvailableDonations = [
-  {
-    id: 301,
-    meal_description: 'Dal Bhat Tarkari',
-    donor_username: 'john_donor',
-    people_count: 20,
-    donation_date: '2026-08-28',
-    preparation_method: 'home_cooked',
-  },
-  {
-    id: 302,
-    meal_description: 'Chicken Momo',
-    donor_username: 'ram_donor',
-    people_count: 15,
-    donation_date: '2026-08-30',
-    preparation_method: 'restaurant',
-  },
-]
-
-const mockIncomingDonations = [
-  {
-    id: 401,
-    meal_description: 'Vegetable Khichdi',
-    donor_username: 'sita_donor',
-    people_count: 25,
-    donation_date: '2026-08-27',
-    preparation_method: 'home_cooked',
-    pickup_status: 'pending',
-    match_id: 501,
-  },
-]
-
-const mockRequests = [
-  {
-    id: 601,
-    meal_type: 'Lunch',
-    people_count: 30,
-    preferred_date: '2026-09-02',
-    notes: 'Vegetarian food preferred.',
-    status: 'open',
-    matches: [],
-  },
-  {
-    id: 602,
-    meal_type: 'Dinner',
-    people_count: 20,
-    preferred_date: '2026-08-29',
-    notes: 'Please include rice and dal.',
-    status: 'matched',
-    matches: [
-      {
-        donor_username: 'sita_donor',
-        donation_date: '2026-08-29',
-        preparation_method: 'home_cooked',
-        pickup_status: 'pending',
-      },
-    ],
-  },
-  {
-    id: 603,
-    meal_type: 'Breakfast',
-    people_count: 15,
-    preferred_date: '2026-08-20',
-    notes: '',
-    status: 'closed',
-    matches: [],
-  },
-]
 
 function ReceiverDashboard() {
-  const [notifications, setNotifications] = useState(mockNotificationsInit)
-  const [availableDonations] = useState(mockAvailableDonations)
-  const [incomingDonations] = useState(mockIncomingDonations)
-  const [requests] = useState(mockRequests)
+  const [username, setUsername] = useState('')
+  const [profileAddress, setProfileAddress] = useState('')
+
+  const [stats, setStats] = useState({
+    total_requests: 0,
+    open_requests: 0,
+    matched: 0,
+    closed: 0,
+  })
+
+  const [notifications, setNotifications] = useState([])
+  const [availableDonations, setAvailableDonations] = useState([])
+  const [incomingDonations, setIncomingDonations] = useState([])
+  const [requests, setRequests] = useState([])
 
   const [activeModal, setActiveModal] = useState(null)
+
+  const [requestLocationChoice, setRequestLocationChoice] =
+    useState('registered')
+
+  const [customRequestLocation, setCustomRequestLocation] =
+    useState('')
+
+  const [loading, setLoading] = useState(true)
 
   const openModal = () => {
     setActiveModal('addRequest')
@@ -103,6 +62,10 @@ function ReceiverDashboard() {
   const closeModal = () => {
     setActiveModal(null)
   }
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -132,62 +95,214 @@ function ReceiverDashboard() {
     }
   }
 
-  const handleMarkRead = (id) => {
-    console.log(
-      'Mark notification read (not connected to Django yet):',
-      id
-    )
+  async function loadDashboard() {
+    try {
+      setLoading(true)
 
-    setNotifications((prev) =>
-      prev.filter((notification) => notification.id !== id)
-    )
+      const response = await fetch(
+        `${API_BASE}/api/receiver-dashboard/`,
+        {
+          credentials: 'include',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to load receiver dashboard')
+      }
+
+      const data = await response.json()
+
+      setUsername(data.username || '')
+      setProfileAddress(data.profile_address || '')
+
+      setStats(
+        data.stats || {
+          total_requests: 0,
+          open_requests: 0,
+          matched: 0,
+          closed: 0,
+        }
+      )
+
+      setNotifications(data.notifications || [])
+      setAvailableDonations(data.available_donations || [])
+      setIncomingDonations(data.incoming_donations || [])
+      setRequests(data.requests || [])
+    } catch (error) {
+      console.error('Dashboard loading error:', error)
+      alert('Could not load receiver dashboard.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleClaimDonation = (donationId) => {
-    console.log(
-      'Claim donation (not connected to Django yet):',
-      donationId
-    )
+  async function handleMarkRead(id) {
+    try {
+      const result = await postToDjango(
+        `/api/notification/read/${id}/`,
+        {}
+      )
 
-    alert('Donation claimed successfully!')
-
+      if (result.success) {
+        setNotifications((prev) =>
+          prev.filter(
+            (notification) => notification.id !== id
+          )
+        )
+      } else {
+        alert(
+          result.message ||
+            'Could not mark notification as read.'
+        )
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Something went wrong.')
+    }
   }
 
-  const handleConfirmReceived = (matchId) => {
-    console.log(
-      'Confirm food received (not connected to Django yet):',
-      matchId
-    )
+  async function handleClaimDonation(donationId) {
+    try {
+      const result = await postToDjango(
+        `/api/receiver/claim/${donationId}/`,
+        {}
+      )
 
-    alert('Food received successfully! Donation completed.')
+      if (result.success) {
+        alert(
+          result.message ||
+            'Donation claimed successfully!'
+        )
+
+        await loadDashboard()
+      } else {
+        alert(
+          result.message ||
+            'Could not claim donation.'
+        )
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Something went wrong while claiming.')
+    }
   }
 
-  const handleDeleteRequest = (requestId) => {
+  async function handleConfirmReceived(matchId) {
+    try {
+      const result = await postToDjango(
+        `/api/receiver/confirm/${matchId}/`,
+        {}
+      )
+
+      if (result.success) {
+        alert(
+          result.message ||
+            'Food received successfully! Donation completed.'
+        )
+
+        await loadDashboard()
+      } else {
+        alert(
+          result.message ||
+            'Could not confirm food received.'
+        )
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Something went wrong while confirming.')
+    }
+  }
+
+  async function handleDeleteRequest(requestId) {
     const confirmed = window.confirm(
-      'Delete this request?'
+      'Are you sure you want to delete this request?'
     )
 
-    if (!confirmed) return
+    if (!confirmed) {
+      return
+    }
 
-    console.log(
-      'Delete request (not connected to Django yet):',
-      requestId
-    )
+    try {
+      const result = await postToDjango(
+        `/api/receiver/delete/${requestId}/`,
+        {}
+      )
+
+      if (result.success) {
+        alert(
+          result.message ||
+            'Request deleted successfully.'
+        )
+
+        await loadDashboard()
+      } else {
+        alert(
+          result.message ||
+            'Could not delete request.'
+        )
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Something went wrong while deleting.')
+    }
   }
 
-  const handlePostRequest = (e) => {
+  async function handlePostRequest(e) {
     e.preventDefault()
 
-    const data = Object.fromEntries(
-      new FormData(e.target)
-    )
+    const formData = new FormData(e.target)
 
-    console.log(
-      'Meal request submitted (not connected to Django yet):',
-      data
-    )
+    const data = {
+      meal_type: formData.get('meal_type'),
+      people_count: formData.get('people_count'),
+      preferred_date: formData.get('preferred_date'),
+      notes: formData.get('notes'),
+      location_choice: requestLocationChoice,
+      custom_location: customRequestLocation,
+    }
 
-    closeModal()
+    try {
+      const result = await postToDjango(
+        '/api/receiver/request/',
+        data
+      )
+
+      if (result.success) {
+        alert(
+          result.message ||
+            'Meal request posted successfully.'
+        )
+
+        e.target.reset()
+
+        setRequestLocationChoice('registered')
+        setCustomRequestLocation('')
+
+        closeModal()
+
+        await loadDashboard()
+      } else {
+        alert(
+          result.message ||
+            'Could not post meal request.'
+        )
+      }
+    } catch (error) {
+      console.error(error)
+      alert(
+        'Something went wrong while posting the request.'
+      )
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="empty-state">
+          <p>Loading receiver dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -203,7 +318,7 @@ function ReceiverDashboard() {
           </h1>
 
           <p className="page-subtitle">
-            Welcome, <strong>{mockUser.username}</strong>!
+            Welcome, <strong>{username}</strong>!
           </p>
         </div>
 
@@ -216,7 +331,6 @@ function ReceiverDashboard() {
         </button>
 
       </div>
-
 
       {/* Notifications */}
       {notifications.map((notification) => (
@@ -240,13 +354,12 @@ function ReceiverDashboard() {
         </div>
       ))}
 
-
       {/* Stats */}
-      <div className="grid-3 mb-5">
+      <div className="grid-4 mb-5">
 
         <div className="stat-card">
           <span className="stat-number color-green">
-            {mockStats.total_requests}
+            {stats.total_requests}
           </span>
 
           <span className="stat-label">
@@ -256,7 +369,7 @@ function ReceiverDashboard() {
 
         <div className="stat-card">
           <span className="stat-number color-warning">
-            {mockStats.open_requests}
+            {stats.open_requests}
           </span>
 
           <span className="stat-label">
@@ -266,7 +379,7 @@ function ReceiverDashboard() {
 
         <div className="stat-card">
           <span className="stat-number color-primary">
-            {mockStats.matched}
+            {stats.matched}
           </span>
 
           <span className="stat-label">
@@ -274,8 +387,17 @@ function ReceiverDashboard() {
           </span>
         </div>
 
-      </div>
+        <div className="stat-card">
+          <span className="stat-number color-green">
+            {stats.closed || 0}
+          </span>
 
+          <span className="stat-label">
+            Completed
+          </span>
+        </div>
+
+      </div>
 
       {/* Incoming Donations */}
       <h2
@@ -291,7 +413,6 @@ function ReceiverDashboard() {
         for you.
       </p>
 
-
       {/* Available Donations */}
       <h3
         className="section-title"
@@ -302,7 +423,6 @@ function ReceiverDashboard() {
       >
         Available Donations
       </h3>
-
 
       {availableDonations.length > 0 ? (
 
@@ -324,8 +444,7 @@ function ReceiverDashboard() {
               </p>
 
               <p className="small">
-                For {donation.people_count} people —
-                {' '}
+                For {donation.people_count} people —{' '}
                 {donation.donation_date}
               </p>
 
@@ -335,6 +454,15 @@ function ReceiverDashboard() {
                   ? '🏠 Home Cooked'
                   : '🍽️ Restaurant Ordered'}
               </p>
+
+              {/* DONATION LOCATION */}
+              {donation.donation_location && (
+                <p className="small text-muted">
+                  <i className="fas fa-map-marker-alt"></i>{' '}
+                  <strong>Donation Location:</strong>{' '}
+                  {donation.donation_location}
+                </p>
+              )}
 
               <button
                 className="btn btn-green btn-small mt-1"
@@ -358,7 +486,6 @@ function ReceiverDashboard() {
         </div>
 
       )}
-
 
       {/* Incoming Donations Already Matched */}
       {incomingDonations.length > 0 ? (
@@ -398,13 +525,21 @@ function ReceiverDashboard() {
                   {post.donation_date}
                 </p>
 
-                <p className="text-muted small mb-3">
+                <p className="text-muted small mb-1">
                   {post.preparation_method ===
                   'home_cooked'
                     ? '🏠 Home Cooked'
                     : '🍽️ Restaurant Ordered'}
                 </p>
 
+                {/* DONATION LOCATION */}
+                {post.donation_location && (
+                  <p className="text-muted small mb-3">
+                    <i className="fas fa-map-marker-alt"></i>{' '}
+                    <strong>Donation Location:</strong>{' '}
+                    {post.donation_location}
+                  </p>
+                )}
 
                 {post.pickup_status !== 'completed' ? (
 
@@ -460,7 +595,6 @@ function ReceiverDashboard() {
 
       )}
 
-
       {/* My Meal Requests */}
       <h2
         className="page-title mb-3"
@@ -469,7 +603,6 @@ function ReceiverDashboard() {
         <i className="fas fa-clipboard-list"></i>{' '}
         My Meal Requests
       </h2>
-
 
       {requests.length > 0 ? (
 
@@ -498,14 +631,20 @@ function ReceiverDashboard() {
                   {request.preferred_date}
                 </p>
 
-                {request.notes && (
+                {/* REQUEST LOCATION */}
+                {request.request_location && (
+                  <p className="text-muted small mb-2">
+                    <i className="fas fa-map-marker-alt"></i>{' '}
+                    <strong>Request Location:</strong>{' '}
+                    {request.request_location}
+                  </p>
+                )}
 
+                {request.notes && (
                   <p className="text-muted small mb-2">
                     {request.notes}
                   </p>
-
                 )}
-
 
                 {/* Open */}
                 {request.status === 'open' && (
@@ -516,7 +655,6 @@ function ReceiverDashboard() {
 
                 )}
 
-
                 {/* Matched */}
                 {request.status === 'matched' && (
 
@@ -525,74 +663,73 @@ function ReceiverDashboard() {
                       Matched ✓
                     </span>
 
-                    {request.matches.map(
-                      (match, index) => (
+                    {request.matches &&
+                      request.matches.map(
+                        (match, index) => (
 
-                        <div
-                          className="match-box"
-                          key={index}
-                        >
+                          <div
+                            className="match-box"
+                            key={index}
+                          >
 
-                          <p className="small mb-1">
-                            <strong>Donor:</strong>{' '}
-                            {match.donor_username}
-                          </p>
+                            <p className="small mb-1">
+                              <strong>Donor:</strong>{' '}
+                              {match.donor_username}
+                            </p>
 
-                          <p className="small mb-1">
-                            <strong>Date:</strong>{' '}
-                            {match.donation_date}
-                          </p>
+                            <p className="small mb-1">
+                              <strong>Date:</strong>{' '}
+                              {match.donation_date}
+                            </p>
 
-                          <p className="small mb-2">
-                            <strong>Method:</strong>{' '}
+                            <p className="small mb-2">
+                              <strong>Method:</strong>{' '}
 
-                            {match.preparation_method ===
-                            'home_cooked'
-                              ? '🏠 Home Cooked'
-                              : '🍽️ Restaurant'}
-                          </p>
+                              {match.preparation_method ===
+                              'home_cooked'
+                                ? '🏠 Home Cooked'
+                                : '🍽️ Restaurant'}
+                            </p>
 
+                            {match.pickup_status !==
+                            'completed' ? (
 
-                          {match.pickup_status !==
-                          'completed' ? (
+                              <button
+                                className="btn btn-green btn-full btn-small"
+                                onClick={() =>
+                                  handleConfirmReceived(
+                                    request.id
+                                  )
+                                }
+                              >
+                                <i className="fas fa-check-circle"></i>{' '}
+                                Confirm Received
+                              </button>
 
-                            <button
-                              className="btn btn-green btn-full btn-small"
-                              onClick={() =>
-                                handleConfirmReceived(
-                                  request.id
-                                )
-                              }
-                            >
-                              <i className="fas fa-check-circle"></i>{' '}
-                              Confirm Received
-                            </button>
+                            ) : (
 
-                          ) : (
+                              <span
+                                className="badge badge-success"
+                                style={{
+                                  width: '100%',
+                                  textAlign: 'center',
+                                  display: 'block',
+                                  padding: '8px',
+                                }}
+                              >
+                                ✅ Completed
+                              </span>
 
-                            <span
-                              className="badge badge-success"
-                              style={{
-                                width: '100%',
-                                textAlign: 'center',
-                                display: 'block',
-                                padding: '8px',
-                              }}
-                            >
-                              ✅ Completed
-                            </span>
+                            )}
 
-                          )}
+                          </div>
 
-                        </div>
-
-                      )
-                    )}
+                        )
+                      )}
 
                   </>
 
                 )}
-
 
                 {/* Closed */}
                 {request.status === 'closed' && (
@@ -603,7 +740,6 @@ function ReceiverDashboard() {
 
                 )}
 
-
                 {/* Delete */}
                 {request.status !== 'closed' && (
 
@@ -611,9 +747,7 @@ function ReceiverDashboard() {
                     style={{ marginTop: '12px' }}
                     onSubmit={(e) => {
                       e.preventDefault()
-                      handleDeleteRequest(
-                        request.id
-                      )
+                      handleDeleteRequest(request.id)
                     }}
                   >
 
@@ -651,7 +785,6 @@ function ReceiverDashboard() {
 
       )}
 
-
       {/* Post Meal Need Modal */}
       <div
         className={`modal-overlay ${
@@ -680,7 +813,6 @@ function ReceiverDashboard() {
 
           </div>
 
-
           <div className="modal-body">
 
             <form onSubmit={handlePostRequest}>
@@ -701,7 +833,6 @@ function ReceiverDashboard() {
 
               </div>
 
-
               <div className="form-row">
 
                 <div className="form-group">
@@ -721,7 +852,6 @@ function ReceiverDashboard() {
 
                 </div>
 
-
                 <div className="form-group">
 
                   <label className="form-label">
@@ -739,6 +869,88 @@ function ReceiverDashboard() {
 
               </div>
 
+              {/* REQUEST LOCATION */}
+              <div className="form-group">
+
+                <label className="form-label">
+                  Request / Pickup Location *
+                </label>
+
+                <div>
+
+                  <label>
+                    <input
+                      type="radio"
+                      name="request_location_choice"
+                      value="registered"
+                      checked={
+                        requestLocationChoice ===
+                        'registered'
+                      }
+                      onChange={() => {
+                        setRequestLocationChoice(
+                          'registered'
+                        )
+                        setCustomRequestLocation('')
+                      }}
+                    />{' '}
+                    Use my registered address
+                  </label>
+
+                </div>
+
+                <div style={{ marginTop: '8px' }}>
+
+                  <label>
+                    <input
+                      type="radio"
+                      name="request_location_choice"
+                      value="custom"
+                      checked={
+                        requestLocationChoice ===
+                        'custom'
+                      }
+                      onChange={() =>
+                        setRequestLocationChoice(
+                          'custom'
+                        )
+                      }
+                    />{' '}
+                    Use a different location
+                  </label>
+
+                </div>
+
+                {requestLocationChoice ===
+                  'registered' && (
+
+                  <p className="text-muted small mt-2">
+                    <i className="fas fa-map-marker-alt"></i>{' '}
+                    {profileAddress ||
+                      'No registered address found.'}
+                  </p>
+
+                )}
+
+                {requestLocationChoice ===
+                  'custom' && (
+
+                  <input
+                    type="text"
+                    className="form-control mt-2"
+                    placeholder="Enter request/pickup location"
+                    value={customRequestLocation}
+                    onChange={(e) =>
+                      setCustomRequestLocation(
+                        e.target.value
+                      )
+                    }
+                    required
+                  />
+
+                )}
+
+              </div>
 
               <div className="form-group">
 
@@ -754,7 +966,6 @@ function ReceiverDashboard() {
                 ></textarea>
 
               </div>
-
 
               <button
                 type="submit"

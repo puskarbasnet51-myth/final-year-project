@@ -4,7 +4,10 @@ from core import views
 
 urlpatterns = [
 
-    # Public
+    # ========================================================
+    # PUBLIC
+    # ========================================================
+
     path(
         '',
         views.home,
@@ -18,7 +21,10 @@ urlpatterns = [
     ),
 
 
-    # Registration
+    # ========================================================
+    # REGISTRATION
+    # ========================================================
+
     path(
         'register/',
         views.register_view,
@@ -38,7 +44,10 @@ urlpatterns = [
     ),
 
 
-    # Login
+    # ========================================================
+    # LOGIN
+    # ========================================================
+
     path(
         'login/',
         views.login_view,
@@ -52,7 +61,10 @@ urlpatterns = [
     ),
 
 
-    # Logout
+    # ========================================================
+    # LOGOUT
+    # ========================================================
+
     path(
         'logout/',
         views.logout_view,
@@ -60,7 +72,10 @@ urlpatterns = [
     ),
 
 
-    # Dashboard
+    # ========================================================
+    # GENERAL DASHBOARD / PROFILE
+    # ========================================================
+
     path(
         'dashboard/',
         views.dashboard,
@@ -75,7 +90,82 @@ urlpatterns = [
 
 
     # ========================================================
-    # DONOR
+    # REACT API - DONOR
+    # ========================================================
+
+    path(
+        'api/donor-dashboard/',
+        views.donor_dashboard_api,
+        name='donor_dashboard_api'
+    ),
+
+    path(
+        'api/donor/add/',
+        views.add_donation_api,
+        name='add_donation_api'
+    ),
+
+    path(
+        'api/donor/respond/<int:req_id>/',
+        views.respond_to_request_api,
+        name='respond_to_request_api'
+    ),
+
+    path(
+        'api/donor/delete/<int:post_id>/',
+        views.delete_donation_api,
+        name='delete_donation_api'
+    ),
+
+
+    # ========================================================
+    # REACT API - RECEIVER
+    # ========================================================
+
+    path(
+        'api/receiver-dashboard/',
+        views.receiver_dashboard_api,
+        name='receiver_dashboard_api'
+    ),
+
+    path(
+        'api/receiver/request/',
+        views.add_meal_request_api,
+        name='add_meal_request_api'
+    ),
+
+    path(
+        'api/receiver/claim/<int:post_id>/',
+        views.claim_donation_api,
+        name='claim_donation_api'
+    ),
+
+    path(
+        'api/receiver/confirm/<int:match_id>/',
+        views.confirm_pickup_api,
+        name='confirm_pickup_api'
+    ),
+
+    path(
+        'api/receiver/delete/<int:req_id>/',
+        views.delete_request_api,
+        name='delete_request_api'
+    ),
+
+
+    # ========================================================
+    # REACT API - NOTIFICATIONS
+    # ========================================================
+
+    path(
+        'api/notification/read/<int:notif_id>/',
+        views.mark_read_api,
+        name='mark_read_api'
+    ),
+
+
+    # ========================================================
+    # DONOR - OLD DJANGO HTML ROUTES
     # ========================================================
 
     path(
@@ -110,7 +200,7 @@ urlpatterns = [
 
 
     # ========================================================
-    # RECEIVER
+    # RECEIVER - OLD DJANGO HTML ROUTES
     # ========================================================
 
     path(
@@ -162,7 +252,7 @@ urlpatterns = [
 
 
     # ========================================================
-    # NOTIFICATIONS
+    # NOTIFICATIONS - OLD DJANGO HTML
     # ========================================================
 
     path(
