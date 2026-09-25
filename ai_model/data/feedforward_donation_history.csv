@@ -1,0 +1,12 @@
+donor_id,username,people_count,donation_date,previous_donation_date,days_since_previous,donated_again_within_7_days
+2,puskar2,20,2026-08-03,,,1
+2,puskar2,30,2026-08-03,2026-08-03,0.0,1
+2,puskar2,50,2026-08-03,2026-08-03,0.0,1
+2,puskar2,20,2026-08-06,2026-08-03,3.0,1
+2,puskar2,20,2026-08-07,2026-08-06,1.0,1
+2,puskar2,10,2026-08-08,2026-08-07,1.0,0
+2,puskar2,30,2026-08-29,2026-08-08,21.0,0
+5,prakash2,10,2026-08-27,,,1
+5,prakash2,10,2026-08-30,2026-08-27,3.0,1
+5,prakash2,20,2026-08-30,2026-08-30,0.0,0
+7,bisesh2,30,2026-08-28,,,0

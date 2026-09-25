@@ -8,6 +8,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from datetime import datetime
+from django.db.models import Q
+from .models import UserProfile, DonationPost, MealRequest, DonationMatch
 
 from core.models import (
     UserProfile,
@@ -286,7 +288,7 @@ def login_api(request):
 def logout_view(request):
     logout(request)
 
-    return redirect('home')
+    return redirect('http://localhost:5174/')
 
 
 # ============================================================
@@ -653,9 +655,13 @@ def donor_dashboard_api(request):
             'status': post.status,
             'donation_location': post.donation_location,
             'matches': [
-                {'receiver_username': m.meal_request.receiver.username}
-                for m in matches
-            ],
+    {
+        'receiver_username': m.meal_request.receiver.username,
+        'match_id': m.id,
+        'pickup_status': m.pickup_status,
+    }
+    for m in matches
+],
         })
 
     requests_data = [{
@@ -1106,6 +1112,7 @@ def receiver_dashboard_api(request):
         'donation_date': str(d.donation_date),
         'preparation_method': d.preparation_method,
         'donation_location': d.donation_location,
+        'notes': d.notes,
     } for d in available_donations]
 
     incoming_data = []
@@ -1121,6 +1128,7 @@ def receiver_dashboard_api(request):
             'donation_date': str(d.donation_date),
             'preparation_method': d.preparation_method,
             'donation_location': d.donation_location,
+            'notes': d.notes,
             'pickup_status': match.pickup_status if match else 'pending',
             'match_id': match.id if match else None,
         })
@@ -1142,7 +1150,7 @@ def receiver_dashboard_api(request):
                 'preparation_method': m.donation_post.preparation_method,
                 'pickup_status': m.pickup_status,
                 'match_id': m.id,
-            } for m in matches],
+                } for m in matches],
         })
 
     notifications_data = [{'id': n.id, 'message': n.message} for n in notifications]
@@ -1685,3 +1693,400 @@ def mark_read_api(request, notif_id):
     notification.save()
 
     return JsonResponse({'success': True})
+
+# ============================================================
+# AI - DONOR BEHAVIOUR PREDICTION API
+# ============================================================
+
+@login_required
+def donor_prediction_api(request):
+
+    # Only donors can use donor behaviour prediction
+    profile = get_object_or_404(
+        UserProfile,
+        user=request.user
+    )
+
+    if profile.role != 'donor':
+        return JsonResponse({
+            'success': False,
+            'message': 'Donor prediction is available only for donors.'
+        }, status=403)
+
+    # Get completed donations of the logged-in donor
+    donations = DonationPost.objects.filter(
+        donor=request.user,
+        status='completed'
+    ).order_by(
+        '-donation_date',
+        '-id'
+    )
+
+    # Need at least two completed donations
+    if donations.count() < 2:
+        return JsonResponse({
+            'success': False,
+            'message': 'Not enough donation history for prediction.'
+        }, status=400)
+
+    # Latest completed donation
+    latest_donation = donations[0]
+
+    # Previous completed donation
+    previous_donation = donations[1]
+
+    # Calculate days between the two donations
+    days_since_previous = (
+        latest_donation.donation_date
+        - previous_donation.donation_date
+    ).days
+
+    # Import the AI prediction helper
+    from core.ai.donor_prediction import (
+        predict_donor_behaviour
+    )
+
+    # Make prediction
+    result = predict_donor_behaviour(
+        people_count=latest_donation.people_count,
+        days_since_previous=days_since_previous
+    )
+
+    return JsonResponse({
+        'success': True,
+
+        'prediction': result['prediction'],
+
+        'probability': result['probability'],
+
+        'likely_to_donate': result['likely_to_donate'],
+
+        'people_count': latest_donation.people_count,
+
+        'days_since_previous': days_since_previous,
+
+        'message': (
+            'AI prediction generated successfully.'
+        )
+    })
+
+@login_required
+def receiver_donation_prediction_api(request, donation_id):
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+    from django.db.models import Q
+
+    from core.models import DonationPost, UserProfile
+    from core.ai.donor_prediction import predict_donation_completion
+
+    try:
+        # =====================================================
+        # 1. CHECK USER
+        # =====================================================
+
+        profile = get_object_or_404(
+            UserProfile,
+            user=request.user
+        )
+
+        if profile.role != 'receiver':
+            return JsonResponse({
+                'success': False,
+                'message': 'Only receivers can access this prediction.'
+            }, status=403)
+
+        # =====================================================
+        # 2. GET DONATION
+        # =====================================================
+
+        donation = get_object_or_404(
+            DonationPost,
+            id=donation_id
+        )
+
+        # =====================================================
+        # 3. GET DONOR HISTORY
+        # =====================================================
+
+        previous_donations = DonationPost.objects.filter(
+            donor=donation.donor
+        ).filter(
+            Q(
+                donation_date__lt=donation.donation_date
+            )
+            |
+            Q(
+                donation_date=donation.donation_date,
+                id__lt=donation.id
+            )
+        ).order_by(
+            'donation_date',
+            'id'
+        )
+
+        # =====================================================
+        # 4. CALCULATE HISTORY
+        # =====================================================
+
+        previous_total_count = previous_donations.count()
+
+        previous_completed_count = (
+            previous_donations
+            .filter(status='completed')
+            .count()
+        )
+
+        if previous_total_count > 0:
+            previous_completion_rate = (
+                previous_completed_count /
+                previous_total_count
+            )
+        else:
+            previous_completion_rate = 0.0
+
+        # =====================================================
+        # 5. RUN AI
+        # =====================================================
+
+        result = predict_donation_completion(
+            people_count=donation.people_count,
+            preparation_method=donation.preparation_method,
+            previous_completed_count=previous_completed_count,
+            previous_total_count=previous_total_count,
+            previous_completion_rate=previous_completion_rate
+        )
+
+        # =====================================================
+        # 6. RETURN JSON
+        # =====================================================
+
+        return JsonResponse({
+            'success': True,
+
+            'donation_id': donation.id,
+
+            'donor_username': donation.donor.username,
+
+            'probability': result['probability'],
+
+            'prediction': result['prediction'],
+
+            'likely_to_complete':
+                result['likely_to_complete'],
+
+            'people_count':
+                donation.people_count,
+
+            'preparation_method':
+                donation.preparation_method,
+
+            'previous_completed_count':
+                previous_completed_count,
+
+            'previous_total_count':
+                previous_total_count,
+
+            'previous_completion_rate':
+                previous_completion_rate,
+
+            'message':
+                'AI donation completion prediction generated successfully.'
+        })
+
+    except Exception as e:
+
+        # IMPORTANT:
+        # Return JSON instead of Django HTML error page.
+        # This lets React show the real error.
+
+        print(
+            'AI PREDICTION ERROR:',
+            str(e)
+        )
+
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+        # =====================================================
+        # RETURN JSON ERROR INSTEAD OF DJANGO HTML ERROR PAGE
+        # =====================================================
+
+        return JsonResponse(
+            {
+                'success': False,
+                'message': str(e)
+            },
+            status=500
+        )
+
+       # ============================================================
+# RECEIVER ACCEPT DONATION
+# ============================================================
+
+@require_POST
+@login_required
+def accept_donation_api(request, match_id):
+    """Receiver accepts a donation offered by a donor."""
+
+    try:
+        match = get_object_or_404(
+            DonationMatch,
+            id=match_id,
+            meal_request__receiver=request.user
+        )
+
+        if match.pickup_status != 'pending':
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    'This donation cannot be accepted because '
+                    f'its current status is "{match.pickup_status}".'
+                )
+            }, status=400)
+
+        match.pickup_status = 'confirmed'
+        match.confirmed_by = request.user
+
+        match.save(
+            update_fields=[
+                'pickup_status',
+                'confirmed_by'
+            ]
+        )
+
+        match.donation_post.status = 'matched'
+        match.donation_post.save(
+            update_fields=['status']
+        )
+
+        match.meal_request.status = 'matched'
+        match.meal_request.save(
+            update_fields=['status']
+        )
+
+        notify(
+            match.donation_post.donor,
+            (
+                f'{request.user.username} accepted your food donation. '
+                'The donation is now confirmed for pickup.'
+            ),
+            'match_confirmed'
+        )
+
+        notify(
+            request.user,
+            (
+                'You accepted the donation from '
+                f'{match.donation_post.donor.username}.'
+            ),
+            'match_confirmed'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Food donation accepted successfully.'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+    # ============================================================
+# DONOR MARKS FOOD AS READY
+# ============================================================
+
+@require_POST
+@login_required
+def donor_mark_ready_api(request, match_id):
+    """Donor marks a confirmed donation's food as ready for pickup."""
+
+    try:
+        match = get_object_or_404(
+            DonationMatch,
+            id=match_id,
+            donation_post__donor=request.user
+        )
+
+        if match.pickup_status != 'confirmed':
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    'This donation cannot be marked ready because '
+                    f'its current status is "{match.pickup_status}".'
+                )
+            }, status=400)
+
+        match.pickup_status = 'ready'
+        match.save(update_fields=['pickup_status'])
+
+        notify(
+            match.meal_request.receiver,
+            (
+                f'{request.user.username} has the food ready for pickup '
+                f'for {match.meal_request.people_count} people.'
+            ),
+            'match_confirmed'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Marked as ready. The receiver has been notified.'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+# ============================================================
+# RECEIVER DECLINE DONOR OFFER
+# ============================================================
+
+
+@login_required
+@require_POST
+def receiver_decline(request, match_id):
+    """Receiver declines only this donor's offer."""
+
+    try:
+        match = get_object_or_404(
+            DonationMatch,
+            id=match_id
+        )
+
+        if match.meal_request.receiver != request.user:
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    'You are not allowed to decline this donation.'
+                )
+            }, status=403)
+
+        donation = match.donation_post
+
+        match.delete()
+
+        if donation.status != 'completed':
+            donation.status = 'pending'
+            donation.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': (
+                'Donor offer declined. '
+                'Your meal request remains open.'
+            )
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)

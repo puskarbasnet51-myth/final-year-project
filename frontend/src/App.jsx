@@ -1,7 +1,7 @@
 
 
 
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import Register from './pages/Register'
 import Login from './pages/Login'
@@ -12,6 +12,18 @@ import Profile from './pages/Profile'
 import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
+  const API_BASE = 'http://localhost:8000'
+  const location = useLocation()
+
+  // Existing authenticated-area routes
+  const authenticatedPaths = [
+    '/donor-dashboard',
+    '/receiver-dashboard',
+    '/admin-dashboard',
+    '/profile',
+  ]
+  const isLoggedIn = authenticatedPaths.includes(location.pathname)
+
   return (
     <>
       {/* Temporary Navbar */}
@@ -22,13 +34,19 @@ function App() {
           </Link>
 
           <div className="nav-links">
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-            <Link to="/login">Login</Link>
-            <Link to="/register" className="btn-nav">
-              Register
-            </Link>
-          </div>
+  <Link to="/">Home</Link>
+  <Link to="/about">About</Link>
+  {isLoggedIn ? (
+    <a href={`${API_BASE}/logout/`}>Logout</a>
+  ) : (
+    <>
+      <Link to="/login">Login</Link>
+      <Link to="/register" className="btn-nav">
+        Register
+      </Link>
+    </>
+  )}
+</div>
         </div>
       </nav>
 

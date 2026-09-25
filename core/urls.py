@@ -9,6 +9,12 @@ urlpatterns = [
     # ========================================================
 
     path(
+    'api/receiver/donation-prediction/<int:donation_id>/',
+    views.receiver_donation_prediction_api,
+    name='receiver_donation_prediction_api'
+    ),
+    
+    path(
         '',
         views.home,
         name='home'
@@ -18,6 +24,12 @@ urlpatterns = [
         'about/',
         views.about,
         name='about'
+    ),
+
+    path(
+        'api/donor-prediction/',
+        views.donor_prediction_api,
+        name='donor_prediction_api'
     ),
 
 
@@ -117,6 +129,12 @@ urlpatterns = [
         name='delete_donation_api'
     ),
 
+    path(
+    'api/donor/food-ready/<int:match_id>/',
+    views.donor_mark_ready_api,
+    name='donor_mark_ready_api'
+    ),
+
 
     # ========================================================
     # REACT API - RECEIVER
@@ -141,6 +159,12 @@ urlpatterns = [
     ),
 
     path(
+    'api/receiver/accept/<int:match_id>/',
+    views.accept_donation_api,
+    name='accept_donation_api'
+    ),
+
+    path(
         'api/receiver/confirm/<int:match_id>/',
         views.confirm_pickup_api,
         name='confirm_pickup_api'
@@ -150,6 +174,12 @@ urlpatterns = [
         'api/receiver/delete/<int:req_id>/',
         views.delete_request_api,
         name='delete_request_api'
+    ),
+
+    path(
+    'api/receiver/decline/<int:match_id>/',
+    views.receiver_decline,
+    name='receiver_decline'
     ),
 
 

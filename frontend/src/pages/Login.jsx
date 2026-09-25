@@ -23,6 +23,21 @@ function Login() {
     }))
   }
 
+  const getCsrfToken = () => {
+    const csrfCookie = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('csrftoken='))
+
+    if (!csrfCookie) {
+      return null
+    }
+
+    return csrfCookie
+      .split('=')
+      .slice(1)
+      .join('=')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -30,7 +45,10 @@ function Login() {
     setLoading(true)
 
     try {
-      // 1. Get CSRF cookie from Django
+      // =====================================================
+      // STEP 1: GET CSRF TOKEN
+      // =====================================================
+
       const csrfResponse = await fetch(
         `${API_BASE}/api/csrf/`,
         {
@@ -40,36 +58,42 @@ function Login() {
       )
 
       if (!csrfResponse.ok) {
-        throw new Error('Could not get CSRF token')
+        throw new Error(
+          'Could not get CSRF token from Django.'
+        )
       }
 
-      // 2. Read CSRF token from browser cookie
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('csrftoken='))
-        ?.split('=')
-        .slice(1)
-        .join('=')
+      const csrfData = await csrfResponse.json()
+
+      const csrfToken =
+        csrfData.csrfToken || getCsrfToken()
 
       if (!csrfToken) {
-        setErrorMessage(
-          'Could not get a CSRF token from Django. Is the backend running?'
+        throw new Error(
+          'Django did not provide a CSRF token.'
         )
-        setLoading(false)
-        return
       }
 
-      // 3. Send login request to Django
+      // =====================================================
+      // STEP 2: LOGIN
+      // =====================================================
+
       const response = await fetch(
         `${API_BASE}/api/login/`,
         {
           method: 'POST',
+
+          credentials: 'include',
+
           headers: {
             'Content-Type':
               'application/x-www-form-urlencoded',
+
             'X-CSRFToken': csrfToken,
+
+            Accept: 'application/json',
           },
-          credentials: 'include',
+
           body: new URLSearchParams({
             username: formData.username,
             password: formData.password,
@@ -77,46 +101,85 @@ function Login() {
         }
       )
 
-      // 4. Read Django response
-      const result = await response.json()
+      // =====================================================
+      // STEP 3: CHECK RESPONSE
+      // =====================================================
 
-      // 5. Check login result
-      if (result.success) {
-        console.log('Login successful')
-        console.log('User role:', result.role)
+      const contentType =
+        response.headers.get('content-type') || ''
 
-        // Admin
-        if (result.role === 'admin') {
-          navigate('/admin-dashboard')
-        }
+      if (!contentType.includes('application/json')) {
+        const text = await response.text()
 
-        // Donor
-        else if (result.role === 'donor') {
-          navigate('/donor-dashboard')
-        }
+        console.error(
+          'Unexpected Django login response:',
+          text
+        )
 
-        // Receiver
-        else if (result.role === 'receiver') {
-          navigate('/receiver-dashboard')
-        }
-
-        // Unknown role
-        else {
-          setErrorMessage(
-            'User role not found. Please contact the administrator.'
-          )
-        }
-      } else {
-        setErrorMessage(
-          result.message || 'Login failed.'
+        throw new Error(
+          'Django returned an unexpected response.'
         )
       }
+
+      const result = await response.json()
+
+      console.log('Login response:', result)
+
+      // =====================================================
+      // STEP 4: LOGIN FAILED
+      // =====================================================
+
+      if (!response.ok || !result.success) {
+        setErrorMessage(
+          result.message ||
+          'Invalid username or password.'
+        )
+
+        return
+      }
+
+      // =====================================================
+      // STEP 5: LOGIN SUCCESS
+      // =====================================================
+
+      console.log('Login successful')
+      console.log('Role:', result.role)
+
+      // Give browser time to store session cookie
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300)
+      )
+
+      // =====================================================
+      // STEP 6: REDIRECT
+      // =====================================================
+
+      if (result.role === 'admin') {
+        navigate('/admin-dashboard')
+      }
+
+      else if (result.role === 'donor') {
+        navigate('/donor-dashboard')
+      }
+
+      else if (result.role === 'receiver') {
+        navigate('/receiver-dashboard')
+      }
+
+      else {
+        setErrorMessage(
+          'User role not found. Please contact the administrator.'
+        )
+      }
+
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('LOGIN ERROR:', error)
 
       setErrorMessage(
-        'Could not connect to Django. Is the backend running?'
+        error.message ||
+        'Could not connect to Django.'
       )
+
     } finally {
       setLoading(false)
     }
@@ -136,10 +199,11 @@ function Login() {
           margin: '0 auto',
         }}
       >
+
         <div className="card">
 
-          {/* Header */}
           <div className="card-header-green text-center">
+
             <h3
               style={{
                 fontSize: '1.4rem',
@@ -149,23 +213,23 @@ function Login() {
               <i className="fas fa-sign-in-alt"></i>{' '}
               Login
             </h3>
+
           </div>
 
-          {/* Body */}
+
           <div className="card-body">
 
-            {/* Error message */}
             {errorMessage && (
               <div className="message message-error">
                 {errorMessage}
               </div>
             )}
 
-            {/* Login form */}
+
             <form onSubmit={handleSubmit}>
 
-              {/* Username */}
               <div className="form-group">
+
                 <label className="form-label">
                   Username
                 </label>
@@ -179,10 +243,12 @@ function Login() {
                   onChange={handleChange}
                   required
                 />
+
               </div>
 
-              {/* Password */}
+
               <div className="form-group">
+
                 <label className="form-label">
                   Password
                 </label>
@@ -196,9 +262,10 @@ function Login() {
                   onChange={handleChange}
                   required
                 />
+
               </div>
 
-              {/* Login button */}
+
               <button
                 type="submit"
                 className="btn btn-green btn-full"
@@ -207,22 +274,25 @@ function Login() {
                 }}
                 disabled={loading}
               >
+
                 <i className="fas fa-sign-in-alt"></i>{' '}
 
                 {loading
                   ? 'Logging in...'
                   : 'Login'}
+
               </button>
 
             </form>
 
-            {/* Register link */}
+
             <p
               className="text-center"
               style={{
                 marginTop: '20px',
               }}
             >
+
               No account?{' '}
 
               <Link
@@ -234,10 +304,13 @@ function Login() {
               >
                 Register here
               </Link>
+
             </p>
 
           </div>
+
         </div>
+
       </div>
     </div>
   )

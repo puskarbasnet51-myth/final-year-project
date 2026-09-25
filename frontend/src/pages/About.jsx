@@ -309,7 +309,7 @@ function About() {
                   className="badge badge-success"
                   style={{ padding: '8px 14px' }}
                 >
-                  HTML / CSS / JS
+                 React
                 </span>
 
                 <span

@@ -1,0 +1,45 @@
+============================================================
+FEEDFORWARD - AI METHODOLOGY VALIDATION EXPERIMENT
+Dataset: UCI Blood Transfusion Service Center (real data)
+Model: Logistic Regression (scikit-learn)
+============================================================
+
+Total real records used: 748
+Training set size: 598
+Test set size: 150
+Features used: ['Recency', 'Frequency', 'Time']
+Feature dropped: Monetary (perfectly correlated with Frequency, r=1.0)
+
+--- Learned model coefficients (on scaled features) ---
+  Recency: -0.6953
+  Frequency: 0.8047
+  Time: -0.5623
+  Intercept: -0.2355
+
+--- Evaluation on held-out test set ---
+Accuracy:  0.7133
+Precision: 0.4478
+Recall:    0.8333
+F1-score:  0.5825
+ROC-AUC:   0.7848
+
+Confusion matrix:
+                 Predicted: No   Predicted: Yes
+Actual: No                77              37
+Actual: Yes                6              30
+
+Full classification report:
+              precision    recall  f1-score   support
+
+ not donated       0.93      0.68      0.78       114
+     donated       0.45      0.83      0.58        36
+
+    accuracy                           0.71       150
+   macro avg       0.69      0.75      0.68       150
+weighted avg       0.81      0.71      0.73       150
+
+============================================================
+NOTE: This experiment validates the Logistic Regression methodology on REAL external data.
+It is NOT FeedForward's production model.
+FeedForward's real model will be trained later using FeedForward's own DonationMatch history.
+============================================================

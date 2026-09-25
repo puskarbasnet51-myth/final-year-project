@@ -132,9 +132,10 @@ class DonationMatch(models.Model):
     """Created when a DonationPost is matched to a MealRequest."""
 
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('completed', 'Completed'),
+    ('pending', 'Pending'),
+    ('confirmed', 'Confirmed'),
+    ('ready', 'Ready'),
+    ('completed', 'Completed'),
     ]
 
     donation_post = models.ForeignKey(
